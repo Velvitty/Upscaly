@@ -4516,7 +4516,9 @@ async function sniffWideGamut(file) {
       if (ty === "iCCP" && len <= MAXP && !iccp) iccp = await at(o + 8, len);
       o += 12 + len;
     }
-    if (cicp != null) return cicp !== 1 && cicp !== 2;                  // 1 = BT.709(sRGB) 원색, 2 = 지정 안 됨
+    // cICP 원색 번호(H.273): 1 = BT.709(sRGB), 그 밖의 정의된 번호는 넓은 쪽으로 본다. 2(지정 안 됨)·예약 번호는 원색을 알려 주지 않으므로
+    // 알아듣지 못한 것으로 보고 iCCP로 넘어간다(PNG 명세: cICP는 알아들을 때만 가장 우선)
+    if (cicp != null && [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 22].includes(cicp)) return cicp !== 1;
     if (iccp) {
       let z = 0; while (z < iccp.length && iccp[z] !== 0) z++;
       try { return iccIsWide(await inflateZlib(iccp.subarray(z + 2), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
