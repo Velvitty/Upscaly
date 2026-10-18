@@ -2722,7 +2722,7 @@ function ENGINE_FACTORY() {
     const oct = Math.log2(L);
     if (!(oct > 0.05) || pw < 3 || ph < 3) return;
     const TF = texFields(P, pw, ph, band), NZ = texNoise(t.X0, t.Y0, t.TW, t.TH, L), gain = amt * C * Math.sqrt(oct);
-    const nR = RW * RH, Yo = new Float32Array(nR), tmp = new Float32Array(nR);
+    const nR = RW * RH, Yo = new Float32Array(nR), tmp = new Float32Array(nR), A = Us.length > 3 ? Us[3] : null;
     for (let i = 0; i < nR; i++) { const l = 0.2126 * Us[0][i] + 0.7152 * Us[1][i] + 0.0722 * Us[2][i]; Yo[i] = l > 0 ? Math.sqrt(l) : 0; }
     const lo = gaussSep(Float32Array.from(Yo), RW, RH, gaussKer(0.375 * L), tmp);
     for (let i = 0; i < nR; i++) { const d = Yo[i] - lo[i]; Yo[i] = d * d; }
@@ -2745,7 +2745,12 @@ function ENGINE_FACTORY() {
         const d = Math.sqrt(gap) * NZ[y * t.TW + x], l = 0.2126 * Us[0][q] + 0.7152 * Us[1][q] + 0.0722 * Us[2][q];
         if (!(l > 1e-8)) continue;
         const g = Math.sqrt(l), dd = d > 0.4 * g ? 0.4 * g : d < -0.4 * g ? -0.4 * g : d;   // 한 화소 변화는 밝기(√)의 ±40% 안 — 어두운 곳에 점이 튀지 않게
-        const s = (g + dd) / g, f = s * s;
+        const s = (g + dd) / g;
+        let f = s * s;
+        if (f > 1) {                                         // 밝힐 때는 가장 큰 채널이 상한(알파·1)을 넘지 않게 — 한 채널만 잘려 색상이 바뀌지 않게
+          const mx = Math.max(Us[0][q], Us[1][q], Us[2][q]), cap = A ? Math.min(1, A[q]) : 1;
+          if (mx * f > cap) f = Math.max(1, cap / mx);
+        }
         Us[0][q] *= f; Us[1][q] *= f; Us[2][q] *= f;
       }
     }
@@ -3377,24 +3382,24 @@ async function exportViaCanvas(it, p0, p1) {
   const cx = cv.getContext("2d", desc.cs === "p3" ? { colorSpace: "display-p3" } : undefined);
   if (!cx) throw new Error("캔버스를 만들 수 없습니다");
   const all = [];
-  const pts = [];                                           // 빈 캔버스 판별용 표본 — 타일 가운데 화소의 원래 알파 (최대 64곳)
+  let vis = null;                                           // 빈 캔버스 판별용 — 결과에서 보이는(알파 > 0) 화소 하나의 자리
   for (let ty = 0; ty < desc.nTy; ty++) for (let tx = 0; tx < desc.nTx; tx++) all.push([tx, ty]);
-  const every = Math.max(1, Math.ceil(all.length / 64));
   let done = 0;
   await runLimited(all, POOL.size * 2, async ([tx, ty]) => {
     const t = tileRect(desc, tx, ty);
     let tl = tcGet(tileKey(desc, tx, ty, 0));
     if (!tl) { const [msg, tr] = tileJob(desc, src, t, "rgba8", 0); tl = { cv: tileCanvas((await poolRun(msg, tr)).out, t.TW, t.TH, desc.cs) }; }
-    if ((ty * desc.nTx + tx) % every === 0 || (tx === desc.nTx - 1 && ty === desc.nTy - 1)) {
-      const cxT = t.TW >> 1, cyT = t.TH >> 1;
-      pts.push({ x: t.X0 + cxT, y: t.Y0 + cyT, a: tl.cv.getContext("2d", { willReadFrequently: true }).getImageData(cxT, cyT, 1, 1).data[3] });
+    if (!vis) {                                             // 아직 못 찾았으면 이 타일에서 찾는다 (보통 첫 타일에서 끝난다)
+      const td = tl.cv.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, t.TW, t.TH).data;
+      for (let i = 3; i < td.length; i += 4) if (td[i] !== 0) { const k = (i - 3) >> 2; vis = { x: t.X0 + k % t.TW, y: t.Y0 + ((k / t.TW) | 0) }; break; }
     }
     cx.drawImage(tl.cv, t.X0, t.Y0);
     done++; setProgress(p0 + (p1 - p0) * (done / all.length), "PNG 조립 " + done + " / " + all.length);
   });
   // 한계를 넘으면 예외 없이 빈 캔버스가 나오는 브라우저가 있다. 실제로 찍어 확인한다.
   let ok = false;
-  try { ok = !canvasLooksBlank(cx, pts); } catch (e) { ok = false; }
+  // 보이는 화소가 있는 결과인데 캔버스의 그 자리가 투명하면 빈 캔버스. 결과가 완전히 투명하면 판별할 것이 없다
+  try { ok = !vis || cx.getImageData(vis.x, vis.y, 1, 1).data[3] !== 0; } catch (e) { ok = false; }
   if (!ok) {
     MAX_PIXELS = Math.floor(desc.W * desc.H * 0.85);       // 이 브라우저의 실제 한계를 학습
     updateSizeNote();
@@ -4500,15 +4505,63 @@ async function sniffWideGamut(file) {
     }
     return false;
   }
-  if (str4(p, 4) === "ftyp") {                                           // AVIF·HEIF — colr 상자 (nclx 원색 번호 또는 ICC)
-    for (let o = 4; o + 12 <= n; o++) {
+  if (str4(p, 4) === "ftyp") {                                           // AVIF·HEIF — 주 항목(pitm)에 ipma로 이어진 colr 상자
+    const colrWide = (b) => {                                            // nclx 원색 번호 또는 ICC
+      const k = b.o + b.h, kind = str4(p, k);
+      if (kind === "nclx" && k + 6 <= b.end) { const pr = dv.getUint16(k + 4); return pr !== 1 && pr !== 2; }
+      if (kind === "prof" || kind === "rICC") return iccIsWide(p.subarray(k + 4, b.end));
+      return false;
+    };
+    const prim = heifPrimaryProps(p, dv, n);
+    if (prim) return prim.filter((b) => b.type === "colr").some(colrWide);
+    for (let o = 4; o + 12 <= n; o++) {                                  // 구조를 못 읽으면 예전처럼 처음 나오는 colr
       if (p[o] !== 0x63 || str4(p, o) !== "colr") continue;
-      const size = dv.getUint32(o - 4), kind = str4(p, o + 4);
-      if (kind === "nclx") { const pr = dv.getUint16(o + 8); return pr !== 1 && pr !== 2; }
-      if (kind === "prof" || kind === "rICC") return iccIsWide(p.subarray(o + 8, Math.min(n, o - 4 + size)));
+      return colrWide({ o: o - 4, h: 8, end: Math.min(n, o - 4 + dv.getUint32(o - 4)) });
     }
   }
   return false;
+}
+/* ISO BMFF 상자 목록 [start, end) — 크기 1(64비트)·0(끝까지)을 다룬다. 잘린 상자는 읽을 수 있는 데까지 */
+function bmffBoxes(p, dv, start, end) {
+  const out = [];
+  for (let o = start; o + 8 <= end;) {
+    let size = dv.getUint32(o), h = 8;
+    if (size === 1) { if (o + 16 > end) break; size = Number(dv.getBigUint64(o + 8)); h = 16; }
+    else if (size === 0) size = end - o;
+    if (size < h) break;
+    out.push({ type: str4(p, o + 4), o, h, end: Math.min(end, o + size) });
+    o += size;
+  }
+  return out;
+}
+/* HEIF·AVIF 주 항목의 속성 상자들 — meta 안 pitm(주 항목 번호), iprp 안 ipco(속성, 1부터 번호)·ipma(항목 ↔ 속성 번호).
+   썸네일·보조 영상의 colr가 앞에 있어도 주 영상의 것을 고른다. 구조가 없거나 깨졌으면 null */
+function heifPrimaryProps(p, dv, n) {
+  try {
+    const meta = bmffBoxes(p, dv, 0, n).find((b) => b.type === "meta");
+    if (!meta) return null;
+    const kids = bmffBoxes(p, dv, meta.o + meta.h + 4, meta.end);       // meta는 FullBox (버전·플래그 4바이트)
+    const pitm = kids.find((b) => b.type === "pitm"), iprp = kids.find((b) => b.type === "iprp");
+    if (!pitm || !iprp) return null;
+    const pv = p[pitm.o + pitm.h], primary = pv === 0 ? dv.getUint16(pitm.o + pitm.h + 4) : dv.getUint32(pitm.o + pitm.h + 4);
+    const ip = bmffBoxes(p, dv, iprp.o + iprp.h, iprp.end), ipco = ip.find((b) => b.type === "ipco");
+    if (!ipco) return null;
+    const props = bmffBoxes(p, dv, ipco.o + ipco.h, ipco.end), out = [];
+    for (const ipma of ip.filter((b) => b.type === "ipma")) {
+      const v = p[ipma.o + ipma.h], big = p[ipma.o + ipma.h + 3] & 1;
+      let o = ipma.o + ipma.h + 4;
+      const cnt = dv.getUint32(o); o += 4;
+      for (let e = 0; e < cnt && o < ipma.end; e++) {
+        const id = v < 1 ? dv.getUint16(o) : dv.getUint32(o); o += v < 1 ? 2 : 4;
+        const na = p[o++];
+        for (let a = 0; a < na; a++) {
+          const idx = big ? dv.getUint16(o) & 0x7fff : p[o] & 0x7f; o += big ? 2 : 1;
+          if (id === primary && idx > 0 && props[idx - 1]) out.push(props[idx - 1]);
+        }
+      }
+    }
+    return out;
+  } catch (e) { return null; }
 }
 /* Display P3 ICC 프로필 (v4.3, 행렬 + 매개 곡선) — 원색은 P3 D65를 브래드퍼드로 D50에 맞춘 값, 곡선은 sRGB와 같다 */
 function displayP3Icc() {
@@ -4824,7 +4877,7 @@ $("#staged").addEventListener("change", (e) => { st.staged = e.target.checked; S
 $("#stageWay").addEventListener("change", (e) => { st.stageWay = e.target.value; updateSizeNote(); save(); });
 $("#stageMid").addEventListener("input", (e) => { st.stageMid = +e.target.value; $("#stageMidV").textContent = Math.round(st.stageMid * 100) + "%"; save(); });
 $("#linear").addEventListener("change", (e) => { st.linear = e.target.checked; save(); });
-$("#depth16").addEventListener("change", (e) => { st.depth = e.target.checked ? 16 : 8; save(); });
+$("#depth16").addEventListener("change", (e) => { st.depth = e.target.checked ? 16 : 8; updateSizeNote(); save(); });   // 저장 중 압축 PNG 크기가 배율 자동 예산에 든다
 $("#dither8").addEventListener("change", (e) => { st.dither8 = e.target.checked; save(); });
 $("#btnDiff").addEventListener("click", (e) => {
   st.view.diff = !st.view.diff;
@@ -4900,6 +4953,10 @@ function outDims() {
   const L = linScale();
   return [Math.max(1, Math.round(st.srcW * L)), Math.max(1, Math.round(st.srcH * L))];
 }
+/* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 「자동」 설정으로 4× 확대해 잰 값(research/results/png_ratio.json).
+   질감 되살리기를 켜면 고운 결이 압축을 덜 되게 한다(세기 25~100% 중 큰 쪽). 다른 그림을 위해 10% 여유, 날 크기보다 조금 크게까지 */
+var PNG_RATIO = { 8: [0.471, 0.722], 16: [0.802, 0.930] };    // [질감 끔, 질감 켬]
+function pngRatioMax(depth, tex) { return Math.min(1.02, PNG_RATIO[depth][tex ? 1 : 0] * 1.1); }
 /* ── 배율 v에서 렌더링이 보장되는가 — 처리 전 과정의 최대 메모리를 넉넉히 잡아 메모리 예산의 80% 안이고
    결과가 저장 상한 안일 때만 보장으로 본다. (브라우저는 남은 메모리를 정확히 알려주지 않으므로 이 앱의 예산 기준) */
 function renderBudget(v, mode) {
@@ -4908,10 +4965,12 @@ function renderBudget(v, mode) {
   const [LD, LP] = outLimits();
   if (W > LD || H > LD || px > LP) return { ok: false, why: "저장 상한", px, peakMB: Infinity };
   const lim = MEM_BUDGET * 1048576 * 0.8, nc = st.hasAlpha ? 4 : 3;
-  const steps = stepsOf(Object.assign(snapSettings(), { scale: v, mode }), L);
+  const set = Object.assign(snapSettings(), { scale: v, mode }), steps = stepsOf(set, L);
   let other = 0;                                              // 같이 열려 있는 원본 캔버스들
   stashActive();
   for (const it of st.items) other += it.srcW * it.srcH * 4;
+  // 캐시에 남은 다른 준비된 원본(최근 두 개) — 새로 준비하는 동안은 둘 다, 그 뒤에는 가장 최근 하나가 남는다
+  const curKey = st.items[st.idx].uid + "|" + preKeyOf(set), srcAll = srcOtherBytes(curKey, true), srcLast = srcOtherBytes(curKey, false);
   // 원본 준비: 바이트 4 + 채널 평면 12 + 안내 평면 4 + 노이즈 정리·디컨볼루션 임시 12 = 원본 화소당 32 B
   // 나눠 확대: 중간 해상도마다 채널 평면·재표본·선명화 임시(중간 화소당 32 B) + 원본 기준 평면
   let prep = n0 * 32, s2 = 1;
@@ -4923,15 +4982,17 @@ function renderBudget(v, mode) {
   const texM = st.texAmt > 0 && st.kernel !== "nearest" && st.kernel !== "pixelart" && L > 1 ? ENGINE.texMargin(L) : 0;
   const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * texM) * (To + 64 + 2 * texM) * (48 + (texM ? 24 : 0));
   const band = W * Math.max(To * 4, 128 * 8) * 1.5;
-  let fixed = other + keep + work + band;
+  // 저장: 압축된 PNG 조각이 끝날 때까지 메모리에 모인다 — 데이터 47장에서 잰 최대 압축률(질감·비트 수별)에 여유 10%
+  const png = STREAM_OK ? px * nc * (st.depth === 16 ? 2 : 1) * pngRatioMax(st.depth === 16 ? 16 : 8, texM > 0) : 0;
+  let fixed = other + srcLast + keep + work + band + png;
   if (!STREAM_OK) fixed += px * 4;                            // 스트리밍이 없으면 결과 전체 캔버스로 저장
   // 캐시는 줄여도 결과가 같다(버린 타일은 다시 계산) — 남는 몫만 주되, 저장에 필요한 타일 두 줄(최소 4 MP)은 있어야 한다
   const cacheNeed = Math.min(px, Math.max(4e6, 2 * W * To)) * 4;
   const cacheRoom = lim - fixed;
-  const ok = other + prep <= lim && cacheRoom >= cacheNeed;
+  const ok = other + srcAll + prep <= lim && cacheRoom >= cacheNeed;
   const capPx = Math.max(0, Math.floor(Math.min(cacheRoom, (MEM_BUDGET * 1048576 * 0.6)) / 4));
-  const peakMB = (Math.max(other + prep, fixed + Math.min(px * 4, Math.max(cacheNeed, cacheRoom))) ) / 1048576;
-  return { ok, why: ok ? "" : (other + prep > lim ? "원본 준비 메모리" : "캐시 여유 부족"), px, W, H, capPx,
+  const peakMB = (Math.max(other + srcAll + prep, fixed + Math.min(px * 4, Math.max(cacheNeed, cacheRoom))) ) / 1048576;
+  return { ok, why: ok ? "" : (other + srcAll + prep > lim ? "원본 준비 메모리" : "캐시 여유 부족"), px, W, H, capPx,
            peakMB: Math.min(peakMB, MEM_BUDGET * 0.8 + (ok ? 0 : 1e9)), fixedMB: fixed / 1048576, cacheMB: Math.min(px * 4, capPx * 4) / 1048576 };
 }
 /* 배율 자동 — 3~8× 안에서 렌더링이 보장되는 가장 큰 배율 (크게 복원 탐색값을 검증한 범위가 2·4·8배).
@@ -5413,16 +5474,17 @@ async function decodeImage(file) {
   return it;
 }
 
-/* 빈 캔버스 판별 — 표본 {x, y, a: 원래 알파} 가운데 원래 투명하지 않은 곳이 하나라도 있는데 캔버스에서는 모두 0이면 빈 캔버스.
-   원래 투명하지 않은 표본이 없으면 판별할 수 없으므로 빈 캔버스로 보지 않는다. */
-function canvasLooksBlank(cx, pts) {
-  let seen = false;
-  for (const q of pts) {
-    if (q.a === 0) continue;
-    seen = true;
-    if (cx.getImageData(q.x, q.y, 1, 1).data[3] !== 0) return false;
+/* 원본에 보이는(알파 > 0) 화소가 하나라도 있는가 — 작은 캔버스(최대 1024²)에 원본을 조각조각 그려 읽는다 */
+function sourceHasVisible(src, w, h) {
+  const B = 1024, pc = document.createElement("canvas"); pc.width = Math.min(w, B); pc.height = Math.min(h, B);
+  const px = pc.getContext("2d", { willReadFrequently: true });
+  for (let y0 = 0; y0 < h; y0 += B) for (let x0 = 0; x0 < w; x0 += B) {
+    const bw = Math.min(B, w - x0), bh = Math.min(B, h - y0);
+    px.clearRect(0, 0, pc.width, pc.height); px.drawImage(src, x0, y0, bw, bh, 0, 0, bw, bh);
+    const d = px.getImageData(0, 0, bw, bh).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) return true;
   }
-  return seen;
+  return false;
 }
 /* 디코딩이 끝난 이미지 원소(ImageBitmap/HTMLImageElement)를 항목으로 만든다.
    파일 선택기 없이 들어온 이미지(붙여넣기)도 같은 경로를 탄다. */
@@ -5440,25 +5502,23 @@ function itemFromSource(src, name, tag, bmp, cs) {
   const cx = c.getContext("2d", cs === "p3" ? { willReadFrequently: true, colorSpace: "display-p3" } : { willReadFrequently: true });
   if (!cx) bail("캔버스를 만들 수 없습니다 (메모리 부족)");
   try { cx.drawImage(src, 0, 0); } catch (e) { bail("캔버스에 그리지 못했습니다: " + errMsg(e)); }
-  // 한계를 넘으면 예외 없이 빈 캔버스를 주는 브라우저가 있다 — 5×5 격자 25곳을 원본과 견주어 확인하고 한계를 학습한다
-  // (한 곳만 보면 그 화소가 원래 투명할 때 못 알아챈다)
-  try {
-    const G = 5, probe = document.createElement("canvas"); probe.width = G * G; probe.height = 1;
-    const px2 = probe.getContext("2d"), pts = [];
-    for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
-      const x = Math.round((w - 1) * i / (G - 1)), y = Math.round((h - 1) * j / (G - 1));
-      px2.drawImage(src, x, y, 1, 1, pts.length, 0, 1, 1); pts.push({ x, y });
-    }
-    const want = px2.getImageData(0, 0, G * G, 1).data;
-    pts.forEach((q, k) => { q.a = want[k * 4 + 3]; });
-    if (canvasLooksBlank(cx, pts)) { MAX_PIXELS = Math.floor(w * h * 0.85); bail("캔버스 한계를 넘었습니다. 상한을 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP로 낮췄습니다"); }
-  } catch (e) { if (/한계/.test(errMsg(e))) throw e; }
-
-  let hasAlpha = false;                                    // 실패하면 불투명으로 보고 진행
+  let hasAlpha = false, anyVis = true;                    // 읽기에 실패하면 불투명으로 보고 진행
   try {
     const d = cx.getImageData(0, 0, w, h).data;
-    for (let i = 3; i < d.length; i += 4) if (d[i] !== 255) { hasAlpha = true; break; }
+    anyVis = false;
+    for (let i = 3; i < d.length; i += 4) {
+      if (d[i] !== 255) hasAlpha = true;
+      if (d[i] !== 0) anyVis = true;
+      if (hasAlpha && anyVis) break;
+    }
   } catch (e) { hasAlpha = false; }
+  // 한계를 넘으면 예외 없이 빈 캔버스를 주는 브라우저가 있다. 캔버스가 통째로 투명하면 원본을 조각으로 직접 읽어
+  // 보이는 화소가 하나라도 있는지 본다(있으면 빈 캔버스 — 한계를 학습). 원래 완전히 투명한 그림은 그대로 연다.
+  if (!anyVis) {
+    let vis = false;
+    try { vis = sourceHasVisible(src, w, h); } catch (e) { vis = false; }
+    if (vis) { MAX_PIXELS = Math.floor(w * h * 0.85); bail("캔버스 한계를 넘었습니다. 상한을 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP로 낮췄습니다"); }
+  }
 
   const it = {
     name: name || "붙여넣은 이미지", srcCanvas: c, srcW: w, srcH: h, hasAlpha, cs,
