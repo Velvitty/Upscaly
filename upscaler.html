@@ -4730,7 +4730,7 @@ function scaleLabel(v) { return v + "×"; }
 function bindRange(id, key, fmt) {
   const el = $("#" + id), out = $("#" + id + "V");
   const upd = () => { st[key] = +el.value; out.textContent = fmt(+el.value); };
-  el.addEventListener("input", () => { upd(); markPreset(); if (key === "usRad") updateSizeNote(); });
+  el.addEventListener("input", () => { upd(); markPreset(); if (key === "usRad" || key === "texAmt") updateSizeNote(); });   // 타일 여백·배율 자동 예산이 바뀌는 값
   el.addEventListener("change", save);
   upd();
 }
