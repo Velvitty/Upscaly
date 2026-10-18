@@ -4824,13 +4824,15 @@ $("#btnAuto").addEventListener("click", () => {
         if (g) { st.scale = g.v; syncScaleChips(); }
       }
       let pick = applyAt();
-      // 설정(커널·나눠 확대·질감이 쓰이는지)이 바뀌면 예산도 바뀐다 — 적용한 설정으로 다시 재고, 보장되지 않으면 배율을 다시 골라 그 배율에 맞춰 다시 적용
-      for (let k = 0; g && k < 3; k++) {
-        const r = renderBudget(st.scale, st.mode);
-        if (r.ok) { g = Object.assign({ v: st.scale, below: g.below }, r); break; }
-        const g2 = pickAutoScale();
-        if (!g2 || g2.v === st.scale) { g = null; break; }
-        g = g2; st.scale = g2.v; syncScaleChips(); pick = applyAt();
+      // 설정(커널·나눠 확대·질감이 쓰이는지)이 바뀌면 예산도 바뀐다 — 적용한 설정으로 가장 큰 보장 배율을 다시 찾고,
+      // 달라졌으면 그 배율에 맞춰 다시 적용한다(더 작아질 수도, 더 커질 수도 있다). 같아질 때까지, 최대 3번
+      if (st.scaleAuto) {
+        for (let k = 0; k < 3; k++) {
+          g = pickAutoScale();
+          if (!g || g.v === st.scale) break;
+          st.scale = g.v; syncScaleChips(); pick = applyAt();
+        }
+        if (g && g.v !== st.scale) g = null;                // 끝내 자리 잡지 못했으면 보장한다고 하지 않는다
       }
       if (st.scaleAuto) {
         if (g) {
