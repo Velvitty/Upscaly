@@ -4463,19 +4463,40 @@ async function inflateZlib(u8, max) {
   for (const p of parts) { out.set(p, k); k += p.length; }
   return out;
 }
-/* 파일 머리에서 색 프로필을 찾아 넓은 색역인지 본다 (JPEG APP2 · PNG cICP/iCCP · WebP ICCP · AVIF/HEIF colr). 모르면 false */
+/* 파일의 [o, o+len)를 읽는다 — 머리 2 MB를 먼저 읽어 두고, 그 밖은 읽을 자리부터 256 KB 창으로 다시 읽는다.
+   색 정보 앞에 큰 메타데이터(JPEG 확장 XMP·PNG 글 청크)나 큰 상자(AVIF mdat)가 있어도 사이를 다 읽지 않고 건너뛴다 */
+function fileWindow(file) {
+  let base = 0, buf = new Uint8Array(0);
+  return async (o, len) => {
+    const end = Math.min(file.size, o + len);
+    if (o >= end) return new Uint8Array(0);
+    if (o < base || end > base + buf.length) {
+      base = o; buf = new Uint8Array(await file.slice(o, Math.min(file.size, Math.max(end, o + (o ? 1 << 18 : 1 << 21)))).arrayBuffer());
+    }
+    return buf.subarray(o - base, end - base);
+  };
+}
+/* 파일의 색 프로필을 찾아 넓은 색역인지 본다 (JPEG APP2 · PNG cICP/iCCP · WebP ICCP · AVIF/HEIF colr). 모르면 false.
+   조각·청크·상자 머리를 차례로 따라가며 필요한 곳만 읽는다(머리 수는 최대 65536개, 조각 하나는 16 MB까지) */
 async function sniffWideGamut(file) {
-  const p = new Uint8Array(await file.slice(0, 1 << 21).arrayBuffer()), n = p.length;
-  const dv = new DataView(p.buffer);
+  const at = fileWindow(file), N = file.size, MAXN = 65536, MAXP = 16 << 20;
+  const p = await at(0, 1 << 21), n = p.length;
+  const dv = new DataView(p.buffer, p.byteOffset, p.byteLength);
+  const be32 = (q, o) => ((q[o] << 24) | (q[o + 1] << 16) | (q[o + 2] << 8) | q[o + 3]) >>> 0;
   if (p[0] === 0xff && p[1] === 0xd8) {                                  // JPEG — APP2 "ICC_PROFILE" 조각을 순서대로 잇는다
     const parts = [];
-    for (let o = 2; o + 4 <= n && p[o] === 0xff;) {
-      const m = p[o + 1];
+    for (let o = 2, c = 0; o + 4 <= N && c < MAXN; c++) {
+      const q = await at(o, 4);
+      if (q.length < 4 || q[0] !== 0xff) break;
+      const m = q[1];
       if (m === 0xff) { o++; continue; }                                 // 마커 앞 채움 바이트(0xFF 반복)
       if (m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { o += 2; continue; }   // 길이가 없는 마커
       if (m === 0xda || m === 0xd9) break;
-      const len = dv.getUint16(o + 2);
-      if (m === 0xe2 && len > 16 && str4(p, o + 4) === "ICC_" && str4(p, o + 8) === "PROF") parts.push([p[o + 16], p.subarray(o + 18, Math.min(n, o + 2 + len))]);
+      const len = (q[2] << 8) | q[3];
+      if (m === 0xe2 && len > 16) {
+        const d = await at(o + 4, len - 2);                               // "ICC_PROFILE\0" · 순번 · 개수 · 프로필 조각
+        if (str4(d, 0) === "ICC_" && str4(d, 4) === "PROF") parts.push([d[12], d.subarray(14)]);
+      }
       o += 2 + len;
     }
     if (!parts.length) return false;
@@ -4486,40 +4507,57 @@ async function sniffWideGamut(file) {
   }
   if (p[0] === 0x89 && str4(p, 1).slice(0, 3) === "PNG") {             // PNG — IDAT 앞 색 청크를 모두 본 뒤 cICP > iCCP > sRGB 순으로
     let cicp = null, iccp = null;                                         // (명세상 청크 순서는 자유이고 cICP가 가장 우선)
-    for (let o = 8; o + 12 <= n;) {
-      const len = dv.getUint32(o), ty = str4(p, o + 4), d = o + 8;
+    for (let o = 8, c = 0; o + 12 <= N && c < MAXN; c++) {
+      const q = await at(o, 8);
+      if (q.length < 8) break;
+      const len = be32(q, 0), ty = str4(q, 4);
       if (ty === "IDAT" || ty === "IEND") break;
-      if (ty === "cICP" && len >= 4 && !cicp) cicp = p[d];
-      if (ty === "iCCP" && d + len <= n && !iccp) iccp = [d, len];
+      if (ty === "cICP" && len >= 4 && cicp == null) cicp = (await at(o + 8, 1))[0];
+      if (ty === "iCCP" && len <= MAXP && !iccp) iccp = await at(o + 8, len);
       o += 12 + len;
     }
     if (cicp != null) return cicp !== 1 && cicp !== 2;                  // 1 = BT.709(sRGB) 원색, 2 = 지정 안 됨
     if (iccp) {
-      const [d, len] = iccp; let z = d; while (z < d + len && p[z] !== 0) z++;
-      try { return iccIsWide(await inflateZlib(p.subarray(z + 2, d + len), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
+      let z = 0; while (z < iccp.length && iccp[z] !== 0) z++;
+      try { return iccIsWide(await inflateZlib(iccp.subarray(z + 2), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
     }
     return false;                                                         // sRGB 청크만 있거나 아무것도 없으면 sRGB
   }
-  if (str4(p, 0) === "RIFF" && str4(p, 8) === "WEBP") {                 // WebP — ICCP 청크
-    for (let o = 12; o + 8 <= n;) {
-      const ty = str4(p, o), len = dv.getUint32(o + 4, true);
-      if (ty === "ICCP") return iccIsWide(p.subarray(o + 8, Math.min(n, o + 8 + len)));
+  if (str4(p, 0) === "RIFF" && str4(p, 8) === "WEBP") {                 // WebP — ICCP 청크 (명세상 VP8X 바로 뒤)
+    for (let o = 12, c = 0; o + 8 <= N && c < MAXN; c++) {
+      const q = await at(o, 8);
+      if (q.length < 8) break;
+      const ty = str4(q, 0), len = (q[4] | (q[5] << 8) | (q[6] << 16) | (q[7] << 24)) >>> 0;
+      if (ty === "ICCP") return len <= MAXP && iccIsWide(await at(o + 8, len));
       o += 8 + len + (len & 1);
     }
     return false;
   }
   if (str4(p, 4) === "ftyp") {                                           // AVIF·HEIF — 주 항목(pitm)에 ipma로 이어진 colr 상자
-    const colrWide = (b) => {                                            // nclx 원색 번호 또는 ICC
-      const k = b.o + b.h, kind = str4(p, k);
-      if (kind === "nclx" && k + 6 <= b.end) { const pr = dv.getUint16(k + 4); return pr !== 1 && pr !== 2; }
-      if (kind === "prof" || kind === "rICC") return iccIsWide(p.subarray(k + 4, b.end));
+    const colrWide = (q, qv, b) => {                                     // nclx 원색 번호 또는 ICC
+      const k = b.o + b.h, kind = str4(q, k);
+      if (kind === "nclx" && k + 6 <= b.end) { const pr = qv.getUint16(k + 4); return pr !== 1 && pr !== 2; }
+      if (kind === "prof" || kind === "rICC") return iccIsWide(q.subarray(k + 4, b.end));
       return false;
     };
-    const prim = heifPrimaryProps(p, dv, n);
-    if (prim) return prim.filter((b) => b.type === "colr").some(colrWide);
-    for (let o = 4; o + 12 <= n; o++) {                                  // 구조를 못 읽으면 예전처럼 처음 나오는 colr
+    let meta = null;                                                      // 맨 위 상자 머리를 따라가 meta를 찾는다 (mdat가 앞에 있어도)
+    for (let o = 0, c = 0; o + 8 <= N && c < MAXN; c++) {
+      const q = await at(o, 16);
+      if (q.length < 8) break;
+      let size = be32(q, 0), h = 8;
+      if (size === 1) { if (q.length < 16) break; size = be32(q, 8) * 4294967296 + be32(q, 12); h = 16; }
+      else if (size === 0) size = N - o;
+      if (size < h) break;
+      if (str4(q, 4) === "meta") { if (size <= MAXP) { const mb = await at(o, size); meta = mb.slice(); } break; }
+      o += size;
+    }
+    if (meta) {
+      const mv = new DataView(meta.buffer), prim = heifPrimaryProps(meta, mv, meta.length);
+      if (prim) return prim.filter((b) => b.type === "colr").some((b) => colrWide(meta, mv, b));
+    }
+    for (let o = 4; o + 12 <= n; o++) {                                  // 구조를 못 읽으면 예전처럼 머리에서 처음 나오는 colr
       if (p[o] !== 0x63 || str4(p, o) !== "colr") continue;
-      return colrWide({ o: o - 4, h: 8, end: Math.min(n, o - 4 + dv.getUint32(o - 4)) });
+      return colrWide(p, dv, { o: o - 4, h: 8, end: Math.min(n, o - 4 + dv.getUint32(o - 4)) });
     }
   }
   return false;
@@ -4813,7 +4851,9 @@ $("#btnAuto").addEventListener("click", () => {
   setTimeout(() => {                                        // 분석 전에 문구가 그려지도록
     try {
       const a = analyzeImage(st.srcCanvas, st.jq);
+      const stage0 = { staged: st.staged, stageWay: st.stageWay, stageMid: st.stageMid };   // 탐색값이 바꾸는 나눠 확대는 배율마다 처음 상태에서
       const applyAt = () => {                               // 지금 배율에 맞춰 프리셋·측정 조정·크게 복원 탐색값을 적용한다
+        Object.assign(st, stage0);
         const r = autoPick(a, st.scale), p = PRESETS.find((x) => x.id === r.id);
         for (const [sk, k] of Object.entries(PKEYS)) st[k] = pv(p, sk);
         Object.assign(st, r.o);                             // 실측 기반 미세 조정
@@ -4821,25 +4861,20 @@ $("#btnAuto").addEventListener("click", () => {
         if (useBig) { applyAutoBig(big.s); r.why.push(`크게 복원 탐색값(${big.ko}, ${big.minL}배 이상${big.jpegOnly ? ", JPEG 입력" : ""})`); }
         return Object.assign(r, { p, useBig });
       };
-      let scaleWhy = "", g = null;
-      if (st.scaleAuto) {                                   // 배율 자동: 렌더링이 보장되는 가장 큰 배율
-        g = pickAutoScale();
-        if (g) { st.scale = g.v; syncScaleChips(); }
-      }
-      let pick = applyAt();
-      // 설정(커널·나눠 확대·질감이 쓰이는지)이 바뀌면 예산도 바뀐다 — 적용한 설정으로 가장 큰 보장 배율을 다시 찾고,
-      // 달라졌으면 그 배율에 맞춰 다시 적용한다(더 작아질 수도, 더 커질 수도 있다). 같아질 때까지, 최대 3번
+      let scaleWhy = "", g = null, pick = null;
       if (st.scaleAuto) {
-        for (let k = 0; k < 3; k++) {
-          g = pickAutoScale();
-          if (!g || g.v === st.scale) break;
-          st.scale = g.v; syncScaleChips(); pick = applyAt();
+        // 배율 자동: 「자동」 설정을 적용했을 때 렌더링이 보장되는 가장 큰 배율. 설정(프리셋·탐색값·나눠 확대·질감이 쓰이는지)이
+        // 배율마다 달라 예산도 달라지므로, 큰 배율부터 그 배율의 설정을 실제로 적용해 보고 처음 보장되는 배율을 고른다
+        // (한 설정으로 고른 배율에 다시 적용하는 반복은 배율마다 싼 설정·비싼 설정이 갈리면 더 작은 배율에 머물 수 있다)
+        const s0 = st.scale;
+        for (const v of autoScaleOrder()) {
+          st.scale = v; pick = applyAt();
+          const r = renderBudget(v, st.mode);
+          if (r.ok) { g = Object.assign({ v, below: v < AUTO_SCALE_MIN }, r); break; }
         }
-        // 마지막으로 적용한 설정으로 다시 잰다 — 반복이 배율을 바꾸며 끝났으면 g는 그 앞 설정의 판정이다
-        // (배율에 따라 탐색값이 바뀌어 싼 설정·비싼 설정을 오가는 경우). 보장되지 않으면 보장한다고 하지 않는다
-        const r = renderBudget(st.scale, st.mode);
-        g = r.ok ? Object.assign({ v: st.scale, below: st.scale < AUTO_SCALE_MIN }, r) : null;
-      }
+        if (!g) { st.scale = s0; pick = applyAt(); }
+        syncScaleChips();
+      } else pick = applyAt();
       if (st.scaleAuto) {
         if (g) {
           TC_AUTO_CAP = Math.max(4e6, g.capPx); tcTrim();     // 보장 조건대로 캐시 상한을 낮춘다 (결과는 같고 다시 계산만 늘 수 있다)
@@ -4975,17 +5010,23 @@ function outDims() {
   const L = linScale();
   return [Math.max(1, Math.round(st.srcW * L)), Math.max(1, Math.round(st.srcH * L))];
 }
-/* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 프리셋만·「자동」 탐색값(AUTO_BIG) 두 갈래로 2·3·4× 확대해 잰 값(research/results/png_ratio.json).
-   배율이 작을수록 보간이 덜 매끈해 압축이 덜 된다 → 결과 배율 L 이하에서 가장 큰 측정 배율의 값(2× 미만은 2× 값).
+/* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 1.1·1.25·1.5·2·3·4× 확대해 잰 값(research/results/png_ratio.json).
+   2× 이상은 프리셋만·「자동」 탐색값(AUTO_BIG) 두 갈래 중 큰 쪽, 2× 미만은 탐색값을 쓰지 않으므로 프리셋만.
+   결과 배율 L을 사이에 둔 두 측정 배율 중 큰 값(4× 이상은 4× 값, 1.1× 미만은 날 크기로 본다 — 넓이 배율 1.25×도 가로·세로 1.12×라 측정 안).
    질감 되살리기를 켜면 고운 결이 압축을 덜 되게 한다(세기 25~100% 중 큰 쪽). 다른 그림을 위해 10% 여유, 날 크기보다 조금 크게까지 */
-var PNG_RATIO = {                                             // 배율 → { 비트 수: [질감 끔, 질감 켬] } — 프리셋만·「자동」 탐색값 두 갈래 중 큰 쪽
+var PNG_RATIO = {                                             // 배율 → { 비트 수: [질감 끔, 질감 켬] } (소수 셋째 자리 올림)
+  1.1: { 8: [0.712, 0.767], 16: [0.922, 0.929] },
+  1.25: { 8: [0.679, 0.766], 16: [0.911, 0.927] },
+  1.5: { 8: [0.650, 0.760], 16: [0.894, 0.925] },
   2: { 8: [0.688, 0.790], 16: [0.875, 0.933] },
   3: { 8: [0.615, 0.751], 16: [0.839, 0.931] },
   4: { 8: [0.562, 0.731], 16: [0.817, 0.934] },
 };
 function pngRatioMax(depth, tex, L) {
-  const k = L >= 4 ? 4 : L >= 3 ? 3 : 2;
-  return Math.min(1.02, PNG_RATIO[k][depth][tex ? 1 : 0] * 1.1);
+  const ks = Object.keys(PNG_RATIO).map(Number).sort((a, b) => a - b);
+  if (L < ks[0] - 1e-9) return 1.02;
+  const lo = ks.filter((k) => k <= L + 1e-9).pop(), hi = ks.find((k) => k >= L - 1e-9) || lo;
+  return Math.min(1.02, Math.max(PNG_RATIO[lo][depth][tex ? 1 : 0], PNG_RATIO[hi][depth][tex ? 1 : 0]) * 1.1);
 }
 /* ── 배율 v에서 렌더링이 보장되는가 — 처리 전 과정의 최대 메모리를 넉넉히 잡아 메모리 예산의 80% 안이고
    결과가 저장 상한 안일 때만 보장으로 본다. (브라우저는 남은 메모리를 정확히 알려주지 않으므로 이 앱의 예산 기준) */
@@ -5030,10 +5071,12 @@ function renderBudget(v, mode, over) {                       // over: 아직 적
 const AUTO_SCALE_MIN = 3, AUTO_SCALE_MAX = 8;
 function pickAutoScale() {
   if (!hasImg()) return null;
-  const all = SCALES.map((x) => x.v).filter((x) => x > 1).sort((a, b) => b - a);
-  for (const v of all.filter((x) => x >= AUTO_SCALE_MIN && x <= AUTO_SCALE_MAX)) { const r = renderBudget(v, st.mode); if (r.ok) return Object.assign({ v }, r); }
-  for (const v of all.filter((x) => x < AUTO_SCALE_MIN)) { const r = renderBudget(v, st.mode); if (r.ok) return Object.assign({ v, below: true }, r); }
+  for (const v of autoScaleOrder()) { const r = renderBudget(v, st.mode); if (r.ok) return Object.assign({ v, below: v < AUTO_SCALE_MIN }, r); }
   return null;
+}
+function autoScaleOrder() {                                   // 3~8× 큰 것부터, 그다음 3× 미만 큰 것부터
+  const all = SCALES.map((x) => x.v).filter((x) => x > 1).sort((a, b) => b - a);
+  return all.filter((x) => x >= AUTO_SCALE_MIN && x <= AUTO_SCALE_MAX).concat(all.filter((x) => x < AUTO_SCALE_MIN));
 }
 /* ── 나눠 확대 측정 — 지금 사진의 가운데를 목표 배율만큼 빛의 면적 평균으로 줄였다가(카메라처럼),
    지금 설정 그대로 한 번에 / 나눠서 되살려 원본과 비교한다(PSNR). 원본 준비부터 최종 단계까지 실제 처리와 같은 경로다.
