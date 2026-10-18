@@ -4483,19 +4483,21 @@ async function sniffWideGamut(file) {
     for (const [, q] of parts) { icc.set(q, k); k += q.length; }
     return iccIsWide(icc);
   }
-  if (p[0] === 0x89 && str4(p, 1).slice(0, 3) === "PNG") {             // PNG — cICP가 있으면 그것이 우선, 그다음 sRGB·iCCP
+  if (p[0] === 0x89 && str4(p, 1).slice(0, 3) === "PNG") {             // PNG — IDAT 앞 색 청크를 모두 본 뒤 cICP > iCCP > sRGB 순으로
+    let cicp = null, iccp = null;                                         // (명세상 청크 순서는 자유이고 cICP가 가장 우선)
     for (let o = 8; o + 12 <= n;) {
       const len = dv.getUint32(o), ty = str4(p, o + 4), d = o + 8;
       if (ty === "IDAT" || ty === "IEND") break;
-      if (ty === "cICP" && len >= 4) return p[d] !== 1 && p[d] !== 2;     // 1 = BT.709(sRGB) 원색, 2 = 지정 안 됨
-      if (ty === "sRGB") return false;
-      if (ty === "iCCP" && d + len <= n) {
-        let z = d; while (z < d + len && p[z] !== 0) z++;
-        try { return iccIsWide(await inflateZlib(p.subarray(z + 2, d + len), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
-      }
+      if (ty === "cICP" && len >= 4 && !cicp) cicp = p[d];
+      if (ty === "iCCP" && d + len <= n && !iccp) iccp = [d, len];
       o += 12 + len;
     }
-    return false;
+    if (cicp != null) return cicp !== 1 && cicp !== 2;                  // 1 = BT.709(sRGB) 원색, 2 = 지정 안 됨
+    if (iccp) {
+      const [d, len] = iccp; let z = d; while (z < d + len && p[z] !== 0) z++;
+      try { return iccIsWide(await inflateZlib(p.subarray(z + 2, d + len), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
+    }
+    return false;                                                         // sRGB 청크만 있거나 아무것도 없으면 sRGB
   }
   if (str4(p, 0) === "RIFF" && str4(p, 8) === "WEBP") {                 // WebP — ICCP 청크
     for (let o = 12; o + 8 <= n;) {
