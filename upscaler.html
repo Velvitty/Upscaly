@@ -3908,7 +3908,7 @@ function autoAnalysisImage(cv) {
     x.drawImage(src, 0, 0, w2 * 2, h2 * 2, 0, 0, w2, h2);
     src = c; w = w2; h = h2;
   }
-  const d = src.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  const d = src.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h, srgbRead()).data;
   const f = Math.max(1, Math.ceil(Math.max(w, h) / 512)), aw = Math.floor(w / f), ah = Math.floor(h / f);
   const A = new Float64Array(aw * ah * 3), inv = 1 / (f * f);
   for (let y = 0; y < ah; y++) for (let x = 0; x < aw; x++) {
@@ -4060,7 +4060,7 @@ function analyzeImage(cv, jq) {
   const bxv = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5];
   for (const y0 of YO) for (const x0 of XO) {
     const pw0 = Math.min(ps, W - x0), ph0 = Math.min(ps, H - y0);
-    const pd = sctx.getImageData(x0, y0, pw0, ph0).data;
+    const pd = sctx.getImageData(x0, y0, pw0, ph0, srgbRead()).data;
     const ph = Math.floor(ph0 / 8) * 8, pw = Math.floor(pw0 / 8) * 8;
     if (ph < 8 || pw < 8) continue;
     for (let by = 0; by < ph; by += 8) for (let bx = 0; bx < pw; bx += 8) {
@@ -4166,7 +4166,7 @@ function autoTuneMeasures(cv, A, w, h) {
   const NB = 512, noiseHist = new Uint32Array(NB);
   let noiseCnt = 0, sharpSum = 0, sharpCnt = 0, onGrid = 0, offGrid = 0, onCnt = 0, offCnt = 0;
   for (const [sx, sy] of spots) {
-    const d2 = x2.getImageData(Math.max(0, sx), Math.max(0, sy), ps, ps).data;
+    const d2 = x2.getImageData(Math.max(0, sx), Math.max(0, sy), ps, ps, srgbRead()).data;
     const L = new Float32Array(ps * ps);
     for (let i = 0; i < ps * ps; i++) L[i] = (0.299 * d2[i * 4] + 0.587 * d2[i * 4 + 1] + 0.114 * d2[i * 4 + 2]) / 255;
     for (let y = 2; y < ps - 2; y++) for (let x = 2; x < ps - 2; x++) {
@@ -4431,8 +4431,22 @@ function iccIsWide(p) {
   }
   return /p3|adobe|2020|prophoto|wide/i.test(desc) && !/srgb/i.test(desc);
 }
-async function inflateZlib(u8) {
-  return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer());
+/* 「자동」 분석은 sRGB 값으로 잰다(분류기·색 자동이 sRGB 기준). P3 캔버스에서도 브라우저가 sRGB로 바꿔 넘기게 요청한다 */
+function srgbRead() { return P3_OK ? { colorSpace: "srgb" } : undefined; }
+/* zlib 풀기 — 믿을 수 없는 파일의 작은 압축 폭탄에 대비해 max 바이트를 넘으면 멈춘다 */
+async function inflateZlib(u8, max) {
+  const rd = new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate")).getReader(), parts = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    n += value.length;
+    if (n > max) { try { await rd.cancel(); } catch (e) {} throw new Error("ICC 프로필이 너무 큽니다"); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(n); let k = 0;
+  for (const p of parts) { out.set(p, k); k += p.length; }
+  return out;
 }
 /* 파일 머리에서 색 프로필을 찾아 넓은 색역인지 본다 (JPEG APP2 · PNG cICP/iCCP · WebP ICCP · AVIF/HEIF colr). 모르면 false */
 async function sniffWideGamut(file) {
@@ -4463,7 +4477,7 @@ async function sniffWideGamut(file) {
       if (ty === "sRGB") return false;
       if (ty === "iCCP" && d + len <= n) {
         let z = d; while (z < d + len && p[z] !== 0) z++;
-        try { return iccIsWide(await inflateZlib(p.subarray(z + 2, d + len))); } catch (e) { return false; }
+        try { return iccIsWide(await inflateZlib(p.subarray(z + 2, d + len), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
       }
       o += 12 + len;
     }
