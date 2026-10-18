@@ -4810,24 +4810,38 @@ $("#btnAuto").addEventListener("click", () => {
   setTimeout(() => {                                        // 분석 전에 문구가 그려지도록
     try {
       const a = analyzeImage(st.srcCanvas, st.jq);
-      let scaleWhy = "";
-      if (st.scaleAuto) {                                   // 배율 자동: 렌더링이 보장되는 가장 큰 배율(최대 12×)
-        const g = pickAutoScale();
+      const applyAt = () => {                               // 지금 배율에 맞춰 프리셋·측정 조정·크게 복원 탐색값을 적용한다
+        const r = autoPick(a, st.scale), p = PRESETS.find((x) => x.id === r.id);
+        for (const [sk, k] of Object.entries(PKEYS)) st[k] = pv(p, sk);
+        Object.assign(st, r.o);                             // 실측 기반 미세 조정
+        const big = AUTO_BIG[r.cls], useBig = !!big && linOf(snapSettings()) >= big.minL && (!big.jpegOnly || !!st.jq);
+        if (useBig) { applyAutoBig(big.s); r.why.push(`크게 복원 탐색값(${big.ko}, ${big.minL}배 이상${big.jpegOnly ? ", JPEG 입력" : ""})`); }
+        return Object.assign(r, { p, useBig });
+      };
+      let scaleWhy = "", g = null;
+      if (st.scaleAuto) {                                   // 배율 자동: 렌더링이 보장되는 가장 큰 배율
+        g = pickAutoScale();
+        if (g) { st.scale = g.v; syncScaleChips(); }
+      }
+      let pick = applyAt();
+      // 설정(커널·나눠 확대·질감이 쓰이는지)이 바뀌면 예산도 바뀐다 — 적용한 설정으로 다시 재고, 보장되지 않으면 배율을 다시 골라 그 배율에 맞춰 다시 적용
+      for (let k = 0; g && k < 3; k++) {
+        const r = renderBudget(st.scale, st.mode);
+        if (r.ok) { g = Object.assign({ v: st.scale, below: g.below }, r); break; }
+        const g2 = pickAutoScale();
+        if (!g2 || g2.v === st.scale) { g = null; break; }
+        g = g2; st.scale = g2.v; syncScaleChips(); pick = applyAt();
+      }
+      if (st.scaleAuto) {
         if (g) {
-          st.scale = g.v; syncScaleChips();
           TC_AUTO_CAP = Math.max(4e6, g.capPx); tcTrim();     // 보장 조건대로 캐시 상한을 낮춘다 (결과는 같고 다시 계산만 늘 수 있다)
           scaleWhy = (g.below ? "3× 이상은 렌더링이 보장되지 않아 " : "") + "배율 자동 " + (st.mode === "area" ? "넓이 " : "") + scaleLabel(g.v) + "(결과 " + (g.px / 1e6).toFixed(1) + " MP · 캐시 " +
                      Math.round(g.cacheMB) + " MB 포함 예상 최대 " + Math.round(g.fixedMB + g.cacheMB) + "/" + MEM_BUDGET + " MB)";
         }
         else scaleWhy = "배율 자동: 보장되는 배율이 없어 지금 배율 유지";
       }
-      const { id, o, why, cls } = autoPick(a, st.scale);
-      if (scaleWhy) why.unshift(scaleWhy);         // 배율은 그대로 — 1×면 보정 전용 프리셋 안에서 고른다
-      const p = PRESETS.find((x) => x.id === id);
-      for (const [sk, k] of Object.entries(PKEYS)) st[k] = pv(p, sk);
-      Object.assign(st, o);                                 // 실측 기반 미세 조정
-      const big = AUTO_BIG[cls], useBig = !!big && linOf(snapSettings()) >= big.minL && (!big.jpegOnly || !!st.jq);
-      if (useBig) { applyAutoBig(big.s); why.push(`크게 복원 탐색값(${big.ko}, ${big.minL}배 이상${big.jpegOnly ? ", JPEG 입력" : ""})`); }
+      const { why, cls, p, useBig } = pick;
+      if (scaleWhy) why.unshift(scaleWhy);         // 1×면 보정 전용 프리셋 안에서 고른다
       applyStateToControls();
       $("#preset").value = "";                              // 프리셋 그대로가 아니라 조정본이다
       $("#presetNote").textContent = "자동: " + why.join(" · ") + " → " + p.n + " 기준으로 조정 · 색 처리는 그대로";
@@ -4959,13 +4973,13 @@ var PNG_RATIO = { 8: [0.471, 0.722], 16: [0.802, 0.930] };    // [질감 끔, �
 function pngRatioMax(depth, tex) { return Math.min(1.02, PNG_RATIO[depth][tex ? 1 : 0] * 1.1); }
 /* ── 배율 v에서 렌더링이 보장되는가 — 처리 전 과정의 최대 메모리를 넉넉히 잡아 메모리 예산의 80% 안이고
    결과가 저장 상한 안일 때만 보장으로 본다. (브라우저는 남은 메모리를 정확히 알려주지 않으므로 이 앱의 예산 기준) */
-function renderBudget(v, mode) {
+function renderBudget(v, mode, over) {                       // over: 아직 적용하지 않은 설정(「자동」이 고르는 중인 나눠 확대 등)
   const L = mode === "area" ? Math.sqrt(v) : v, sw = st.srcW, sh = st.srcH, n0 = sw * sh;
   const W = Math.max(1, Math.round(sw * L)), H = Math.max(1, Math.round(sh * L)), px = W * H;
   const [LD, LP] = outLimits();
   if (W > LD || H > LD || px > LP) return { ok: false, why: "저장 상한", px, peakMB: Infinity };
   const lim = MEM_BUDGET * 1048576 * 0.8, nc = st.hasAlpha ? 4 : 3;
-  const set = Object.assign(snapSettings(), { scale: v, mode }), steps = stepsOf(set, L);
+  const set = Object.assign(snapSettings(), over || {}, { scale: v, mode }), steps = stepsOf(set, L);
   let other = 0;                                              // 같이 열려 있는 원본 캔버스들
   stashActive();
   for (const it of st.items) other += it.srcW * it.srcH * 4;
@@ -4979,7 +4993,7 @@ function renderBudget(v, mode) {
   const To = PORT.tileSizeFor(steps[steps.length - 1]), nLast = Math.round(n0 * s2 * s2);
   const keep = nLast * (nc + 1) * 4 + (steps.length > 1 ? n0 * nc * 4 : 0);
   // 질감 되살리기: 결과 에너지 창만큼 타일 여백이 늘고(texMargin), 밝기·저역·잡음 평면 등 화소당 약 16 B를 더 쓴다(여유 두어 24 B)
-  const texM = st.texAmt > 0 && st.kernel !== "nearest" && st.kernel !== "pixelart" && L > 1 ? ENGINE.texMargin(L) : 0;
+  const texM = set.texAmt > 0 && set.kernel !== "nearest" && set.kernel !== "pixelart" && L > 1 ? ENGINE.texMargin(L) : 0;
   const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * texM) * (To + 64 + 2 * texM) * (48 + (texM ? 24 : 0));
   const band = W * Math.max(To * 4, 128 * 8) * 1.5;
   // 저장: 압축된 PNG 조각이 끝날 때까지 메모리에 모인다 — 데이터 47장에서 잰 최대 압축률(질감·비트 수별)에 여유 10%
@@ -5236,6 +5250,7 @@ async function autoStage(alive = () => true) {
     let best = null; const seen = new Map();
     for (const k of Object.keys(STAGE_WAYS)) {
       if (!STAGE_WAYS[k].ok(L)) continue;                        // 이 배율에서 성립하지 않는 방식은 재지 않는다
+      if (st.scaleAuto && !renderBudget(st.scale, st.mode, { staged: true, stageWay: k }).ok) continue;   // 배율 자동: 보장을 깨는 방식은 고르지 않는다
       const set = Object.assign({}, base, { staged: true, stageWay: k }), sig = stepsOf(set, L).join();
       const v = seen.has(sig) ? seen.get(sig) : await stageProbeRun(it, probe, set);   // 이 배율에서 계획이 같으면 결과도 같다
       seen.set(sig, v);
@@ -5243,8 +5258,9 @@ async function autoStage(alive = () => true) {
       if (!best || v > best.v) best = { key: k, v };              // 방식끼리는 가장 높은 것
     }
     if (!alive()) return null;                                    // 그사이 다른 그림·다른 자동 요청이면 적용하지 않는다
-    st.staged = best.v > single + 0.005; STAGE_SEQ++;             // 한 번에 확대보다 나을 때만 켠다
+    st.staged = !!best && best.v > single + 0.005; STAGE_SEQ++;   // 한 번에 확대보다 나을 때만 켠다
     if (st.staged) st.stageWay = best.key;
+    if (st.scaleAuto) { const r = renderBudget(st.scale, st.mode); if (r.ok) { TC_AUTO_CAP = Math.max(4e6, r.capPx); tcTrim(); } }   // 바뀐 계획에 맞춘 캐시 상한
   } finally { QUIET--; }
   applyStateToControls(); updateSizeNote(); save();
   return "나눠 확대 " + (st.staged ? "켬 · " + STAGE_WAYS[st.stageWay].n + " (" + planLabel(stepsOf(snapSettings(), L)) + ")" : "끔") + " — 이 사진에서 측정";
