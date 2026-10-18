@@ -4441,8 +4441,11 @@ async function sniffWideGamut(file) {
   if (p[0] === 0xff && p[1] === 0xd8) {                                  // JPEG — APP2 "ICC_PROFILE" 조각을 순서대로 잇는다
     const parts = [];
     for (let o = 2; o + 4 <= n && p[o] === 0xff;) {
-      const m = p[o + 1], len = dv.getUint16(o + 2);
+      const m = p[o + 1];
+      if (m === 0xff) { o++; continue; }                                 // 마커 앞 채움 바이트(0xFF 반복)
+      if (m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { o += 2; continue; }   // 길이가 없는 마커
       if (m === 0xda || m === 0xd9) break;
+      const len = dv.getUint16(o + 2);
       if (m === 0xe2 && len > 16 && str4(p, o + 4) === "ICC_" && str4(p, o + 8) === "PROF") parts.push([p[o + 16], p.subarray(o + 18, Math.min(n, o + 2 + len))]);
       o += 2 + len;
     }
@@ -4787,7 +4790,13 @@ $("#btnColorAuto").addEventListener("click", () => {
   }, 30);
 });
 
-$("#kernel").addEventListener("change", (e) => { st.kernel = e.target.value; markPreset(); updateSizeNote(); save(); });
+$("#kernel").addEventListener("change", (e) => { st.kernel = e.target.value; markPreset(); syncTexControl(); updateSizeNote(); save(); });
+/* 질감 되살리기는 최근접(원본 복제)·픽셀아트(팔레트 보존) 커널에서는 쓰지 않는다 — 슬라이더를 끄고 이유를 보인다 */
+function syncTexControl() {
+  const off = st.kernel === "nearest" || st.kernel === "pixelart", el = $("#texAmt");
+  el.disabled = off;
+  $("#texAmtV").textContent = off ? "이 커널에서는 쓰지 않음" : st.texAmt === 0 ? "끔" : Math.round(st.texAmt * 100) + "%";
+}
 $("#staged").addEventListener("change", (e) => { st.staged = e.target.checked; updateSizeNote(); save(); });
 $("#stageWay").addEventListener("change", (e) => { st.stageWay = e.target.value; updateSizeNote(); save(); });
 $("#stageMid").addEventListener("input", (e) => { st.stageMid = +e.target.value; $("#stageMidV").textContent = Math.round(st.stageMid * 100) + "%"; save(); });
@@ -4821,6 +4830,7 @@ function applyStateToControls() {
    ["usRad", (v) => (v === 0 ? "자동" : v.toFixed(1) + " px")], ["usThr", (v) => v.toFixed(3)], ["usOvr", (v) => v.toFixed(2)],
    ["texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%")]]
     .forEach(([k, f]) => { $("#" + k).value = st[k]; $("#" + k + "V").textContent = f(st[k]); });
+  syncTexControl();
   syncScaleChips();
   markPreset();
   updateSizeNote();
@@ -4886,7 +4896,9 @@ function renderBudget(v, mode) {
   // 렌더·저장(캐시 제외): 남는 평면 + 워커마다 타일 작업 평면 + 저장 띠(8비트 타일 한 줄, 16비트 128행, 압축 포함)
   const To = PORT.tileSizeFor(steps[steps.length - 1]), nLast = Math.round(n0 * s2 * s2);
   const keep = nLast * (nc + 1) * 4 + (steps.length > 1 ? n0 * nc * 4 : 0);
-  const work = Math.max(1, POOL.size || 1) * (To + 64) * (To + 64) * 48;
+  // 질감 되살리기: 결과 에너지 창만큼 타일 여백이 늘고(texMargin), 밝기·저역·잡음 평면 등 화소당 약 16 B를 더 쓴다(여유 두어 24 B)
+  const texM = st.texAmt > 0 && st.kernel !== "nearest" && st.kernel !== "pixelart" && L > 1 ? ENGINE.texMargin(L) : 0;
+  const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * texM) * (To + 64 + 2 * texM) * (48 + (texM ? 24 : 0));
   const band = W * Math.max(To * 4, 128 * 8) * 1.5;
   let fixed = other + keep + work + band;
   if (!STREAM_OK) fixed += px * 4;                            // 스트리밍이 없으면 결과 전체 캔버스로 저장
