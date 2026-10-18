@@ -5458,9 +5458,13 @@ async function decodeImage(file) {
   // 브라우저마다 달라 sRGB로 잘라 낼 수 있으므로, 넓은 색역 파일은 프로필을 지니는 <img> 경로를 먼저 쓴다
   let wide = false;
   if (P3_OK) { try { wide = await sniffWideGamut(file); } catch (e) { wide = false; } }
-  if (wide) {
+  if (wide) {                                               // <img> 두 경로(Blob URL → Data URL) 모두 프로필을 지닌다
     try { src = await withTimeout(imgFromBlobUrl(file), left(), "시간 초과"); }
     catch (e) { tried.push("blob URL " + errMsg(e)); }
+    if (!src) {
+      try { src = await withTimeout(imgFromDataUrl(file), left(), "시간 초과"); }
+      catch (e) { tried.push("data URL " + errMsg(e)); }
+    }
   }
   if (!src && typeof createImageBitmap === "function") {
     try {
@@ -5474,7 +5478,7 @@ async function decodeImage(file) {
     try { src = await withTimeout(imgFromBlobUrl(file), left(), "시간 초과"); }
     catch (e) { tried.push("blob URL " + errMsg(e)); }
   }
-  if (!src) {                                              // blob:이 막힌 환경을 위한 최후 경로
+  if (!src && !wide) {                                     // blob:이 막힌 환경을 위한 최후 경로 (넓은 색역은 위에서 이미 해 봤다)
     try { src = await withTimeout(imgFromDataUrl(file), left(), "시간 초과"); }
     catch (e) { tried.push("data URL " + errMsg(e)); }
   }
