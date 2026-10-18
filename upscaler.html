@@ -4971,10 +4971,18 @@ function outDims() {
   const L = linScale();
   return [Math.max(1, Math.round(st.srcW * L)), Math.max(1, Math.round(st.srcH * L))];
 }
-/* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 「자동」 설정으로 4× 확대해 잰 값(research/results/png_ratio.json).
+/* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 「자동」 설정으로 2·3·4× 확대해 잰 값(research/results/png_ratio.json).
+   배율이 작을수록 보간이 덜 매끈해 압축이 덜 된다 → 결과 배율 L 이하에서 가장 큰 측정 배율의 값(2× 미만은 2× 값).
    질감 되살리기를 켜면 고운 결이 압축을 덜 되게 한다(세기 25~100% 중 큰 쪽). 다른 그림을 위해 10% 여유, 날 크기보다 조금 크게까지 */
-var PNG_RATIO = { 8: [0.471, 0.722], 16: [0.802, 0.930] };    // [질감 끔, 질감 켬]
-function pngRatioMax(depth, tex) { return Math.min(1.02, PNG_RATIO[depth][tex ? 1 : 0] * 1.1); }
+var PNG_RATIO = {                                             // 배율 → { 비트 수: [질감 끔, 질감 켬] }
+  2: { 8: [0.594, 0.740], 16: [0.863, 0.926] },
+  3: { 8: [0.525, 0.724], 16: [0.835, 0.931] },
+  4: { 8: [0.471, 0.722], 16: [0.802, 0.931] },
+};
+function pngRatioMax(depth, tex, L) {
+  const k = L >= 4 ? 4 : L >= 3 ? 3 : 2;
+  return Math.min(1.02, PNG_RATIO[k][depth][tex ? 1 : 0] * 1.1);
+}
 /* ── 배율 v에서 렌더링이 보장되는가 — 처리 전 과정의 최대 메모리를 넉넉히 잡아 메모리 예산의 80% 안이고
    결과가 저장 상한 안일 때만 보장으로 본다. (브라우저는 남은 메모리를 정확히 알려주지 않으므로 이 앱의 예산 기준) */
 function renderBudget(v, mode, over) {                       // over: 아직 적용하지 않은 설정(「자동」이 고르는 중인 나눠 확대 등)
@@ -5001,7 +5009,7 @@ function renderBudget(v, mode, over) {                       // over: 아직 적
   const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * texM) * (To + 64 + 2 * texM) * (48 + (texM ? 24 : 0));
   const band = W * Math.max(To * 4, 128 * 8) * 1.5;
   // 저장: 압축된 PNG 조각이 끝날 때까지 메모리에 모인다 — 데이터 47장에서 잰 최대 압축률(질감·비트 수별)에 여유 10%
-  const png = STREAM_OK ? px * nc * (st.depth === 16 ? 2 : 1) * pngRatioMax(st.depth === 16 ? 16 : 8, texM > 0) : 0;
+  const png = STREAM_OK ? px * nc * (st.depth === 16 ? 2 : 1) * pngRatioMax(st.depth === 16 ? 16 : 8, texM > 0, L) : 0;
   let fixed = other + srcLast + keep + work + band + png;
   if (!STREAM_OK) fixed += px * 4;                            // 스트리밍이 없으면 결과 전체 캔버스로 저장
   // 캐시는 줄여도 결과가 같다(버린 타일은 다시 계산) — 남는 몫만 주되, 저장에 필요한 타일 두 줄(최소 4 MP)은 있어야 한다
