@@ -3050,10 +3050,13 @@ const SRCC = new Map();
 function srcGet(k) { const v = SRCC.get(k); if (v) { SRCC.delete(k); SRCC.set(k, v); } return v; }
 function srcPut(k, v) { SRCC.set(k, v); while (SRCC.size > 2) SRCC.delete(SRCC.keys().next().value); }
 function srcDropUid(uid) { for (const k of [...SRCC.keys()]) if (k.startsWith(uid + "|")) SRCC.delete(k); }
-function srcBytes() {
-  let b = 0;
-  for (const v of SRCC.values()) b += v.sw * v.sh * ((v.P ? 12 : 0) + (v.A ? 4 : 0)) + (v.d ? v.d.length : 0) + (v.ref ? v.ref.sw * v.ref.sh * 12 : 0);
-  return b;
+function srcEntryBytes(v) { return v.sw * v.sh * ((v.P ? 12 : 0) + (v.A ? 4 : 0)) + (v.d ? v.d.length : 0) + (v.ref ? v.ref.sw * v.ref.sh * (12 + (v.ref.A ? 4 : 0)) : 0); }
+function srcBytes() { let b = 0; for (const v of SRCC.values()) b += srcEntryBytes(v); return b; }
+/* 열쇠 cur가 아닌 준비된 원본 — all이면 전부(새로 준비하는 동안은 둘 다 남아 있다), 아니면 가장 최근 하나(새 것을 넣으면 하나만 남는다) */
+function srcOtherBytes(cur, all) {
+  let sum = 0, last = 0;
+  for (const [k, v] of SRCC) if (k !== cur) { last = srcEntryBytes(v); sum += last; }
+  return all ? sum : last;
 }
 
 /* ── 설정 스냅숏 — 결과는 만들 때의 설정을 그대로 품는다 (저장·재계산이 늘 같은 결과를 낸다) ── */
@@ -3191,21 +3194,23 @@ async function prepareSource(it, set, p0, p1, opts) {
     for (let s = 0; s < steps.length - 1; s++) {             // 마지막 단계 전까지: 커널 확대 → 셀 범위 → 선명화
       const f = steps[s], mw = Math.max(1, Math.round(sw * f)), mh = Math.max(1, Math.round(sh * f)), nm = mw * mh;
       const WXm = buildWeights(sw, mw, kernel), WYm = buildWeights(sh, mh, kernel), tmpm = new Float32Array(mw * sh);
-      const M = [new Float32Array(nm), new Float32Array(nm), new Float32Array(nm)];
-      const G = useEdi ? ENGINE.guidePlane(P, sw * sh, lin) : null;          // DCCI 중간 단계도 방향 보간으로
-      for (let c = 0; c < 3; c++) {
-        if (useEdi) await ENGINE.ediUpsample(P[c], G, sw, sh, mw, mh, 10 * sig8, M[c], null, p1 - 4, p1 - 2, (s + 1) + "단계 확대");
-        else await resamplePlane(P[c], sw, sh, mw, mh, WXm, WYm, tmpm, M[c], p1 - 4, p1 - 2, (s + 1) + "단계 확대");
-        if (set.clamp) clampToCells(M[c], mw, mh, P[c], sw, sh);
+      // 알파도 색과 같은 연산(같은 방향 가중치·셀 범위·선명화)을 거친다 — 색은 미리곱 값이라, 다르게 거르면 반투명 가장자리 색이 틀어진다
+      const src = A ? [P[0], P[1], P[2], A] : P, M = src.map(() => new Float32Array(nm));
+      const G = useEdi ? ENGINE.guidePlane(P, sw * sh, lin) : null;          // DCCI 중간 단계도 방향 보간으로 (방향은 색에서)
+      for (let c = 0; c < src.length; c++) {
+        const lab = (s + 1) + (c < 3 ? "단계 확대" : "단계 알파");
+        if (useEdi) await ENGINE.ediUpsample(src[c], G, sw, sh, mw, mh, 10 * sig8, M[c], null, p1 - 4, p1 - 2, lab);
+        else await resamplePlane(src[c], sw, sh, mw, mh, WXm, WYm, tmpm, M[c], p1 - 4, p1 - 2, lab);
+        if (set.clamp) clampToCells(M[c], mw, mh, src[c], sw, sh);
       }
-      let Am = null;
-      if (A) { Am = new Float32Array(nm); await resamplePlane(A, sw, sh, mw, mh, WXm, WYm, tmpm, Am, p1 - 2, p1 - 1, (s + 1) + "단계 알파"); }
       if (set.usAmt > 0 && mid > 0) {
         const s1 = set.usRad > 0 ? set.usRad : Math.min(6, Math.max(0.6, f * 0.42));
         const u1 = new Float32Array(nm), u2 = new Float32Array(nm), u3 = new Float32Array(nm);
-        for (let c = 0; c < 3; c++) await unsharp(M[c], mw, mh, s1, set.usAmt * mid, set.usThr, set.usOvr, u1, u2, u3, p1 - 1, p1, (s + 1) + "단계 다듬기");
+        for (let c = 0; c < M.length; c++) await unsharp(M[c], mw, mh, s1, set.usAmt * mid, set.usThr, set.usOvr, u1, u2, u3, p1 - 1, p1, (s + 1) + "단계 다듬기");
       }
-      P = M; A = Am; sw = mw; sh = mh;
+      const Am = A ? M[3] : null;
+      if (Am) for (let i = 0; i < nm; i++) Am[i] = Am[i] < 0 ? 0 : Am[i] > 1 ? 1 : Am[i];
+      P = M.slice(0, 3); A = Am; sw = mw; sh = mh;
     }
   }
   const v = { key, d: sw === sw0 && sh === sh0 ? d : null, sw, sh, P, A, sig8, lin, wbGain, steps, ref };
@@ -3372,20 +3377,24 @@ async function exportViaCanvas(it, p0, p1) {
   const cx = cv.getContext("2d", desc.cs === "p3" ? { colorSpace: "display-p3" } : undefined);
   if (!cx) throw new Error("캔버스를 만들 수 없습니다");
   const all = [];
-  let lastA = 255;                                          // 오른쪽 아래 화소의 원래 알파 — 빈 캔버스 판별용
+  const pts = [];                                           // 빈 캔버스 판별용 표본 — 타일 가운데 화소의 원래 알파 (최대 64곳)
   for (let ty = 0; ty < desc.nTy; ty++) for (let tx = 0; tx < desc.nTx; tx++) all.push([tx, ty]);
+  const every = Math.max(1, Math.ceil(all.length / 64));
   let done = 0;
   await runLimited(all, POOL.size * 2, async ([tx, ty]) => {
     const t = tileRect(desc, tx, ty);
     let tl = tcGet(tileKey(desc, tx, ty, 0));
     if (!tl) { const [msg, tr] = tileJob(desc, src, t, "rgba8", 0); tl = { cv: tileCanvas((await poolRun(msg, tr)).out, t.TW, t.TH, desc.cs) }; }
-    if (tx === desc.nTx - 1 && ty === desc.nTy - 1) lastA = readTile(tl, t.TW, t.TH)[(t.TW * t.TH - 1) * 4 + 3];
+    if ((ty * desc.nTx + tx) % every === 0 || (tx === desc.nTx - 1 && ty === desc.nTy - 1)) {
+      const cxT = t.TW >> 1, cyT = t.TH >> 1;
+      pts.push({ x: t.X0 + cxT, y: t.Y0 + cyT, a: tl.cv.getContext("2d", { willReadFrequently: true }).getImageData(cxT, cyT, 1, 1).data[3] });
+    }
     cx.drawImage(tl.cv, t.X0, t.Y0);
     done++; setProgress(p0 + (p1 - p0) * (done / all.length), "PNG 조립 " + done + " / " + all.length);
   });
   // 한계를 넘으면 예외 없이 빈 캔버스가 나오는 브라우저가 있다. 실제로 찍어 확인한다.
   let ok = false;
-  try { ok = cx.getImageData(desc.W - 1, desc.H - 1, 1, 1).data[3] !== 0 || lastA === 0; } catch (e) { ok = false; }
+  try { ok = !canvasLooksBlank(cx, pts); } catch (e) { ok = false; }
   if (!ok) {
     MAX_PIXELS = Math.floor(desc.W * desc.H * 0.85);       // 이 브라우저의 실제 한계를 학습
     updateSizeNote();
@@ -4811,7 +4820,7 @@ function syncTexControl() {
   el.disabled = off;
   $("#texAmtV").textContent = off ? "이 커널에서는 쓰지 않음" : st.texAmt === 0 ? "끔" : Math.round(st.texAmt * 100) + "%";
 }
-$("#staged").addEventListener("change", (e) => { st.staged = e.target.checked; updateSizeNote(); save(); });
+$("#staged").addEventListener("change", (e) => { st.staged = e.target.checked; STAGE_SEQ++; updateSizeNote(); save(); });
 $("#stageWay").addEventListener("change", (e) => { st.stageWay = e.target.value; updateSizeNote(); save(); });
 $("#stageMid").addEventListener("input", (e) => { st.stageMid = +e.target.value; $("#stageMidV").textContent = Math.round(st.stageMid * 100) + "%"; save(); });
 $("#linear").addEventListener("change", (e) => { st.linear = e.target.checked; save(); });
@@ -4939,6 +4948,7 @@ function pickAutoScale() {
    지금 설정 그대로 한 번에 / 나눠서 되살려 원본과 비교한다(PSNR). 원본 준비부터 최종 단계까지 실제 처리와 같은 경로다.
    결과는 사진·설정별로 기억하고, 체크 상태는 열쇠에서 뺀다(켬·끔 모두 같은 측정으로 판정). */
 const STAGE_MEAS = new Map(), STAGE_PENDING = new Set();
+var STAGE_SEQ = 0;                                            // 「단계로 나눠 확대」를 사용자·「자동」이 정할 때마다 늘린다 — 늦게 끝난 첫 측정이 덮어쓰지 않게
 var AUTO_LAST = null;                                      // 마지막 「자동」의 배율 — 그 뒤 배율을 바꾸면 다시 누르라고 알린다
                                                            // (var: 시작할 때 이 줄보다 먼저 updateSizeNote가 불려도 되게)
 let AUTO_SEQ = 0;                                           // 「자동」 요청 번호 — 늦게 끝난 앞 요청이 새 그림에 적용되지 않게
@@ -5059,7 +5069,7 @@ function updateStageLed() {
 async function initStageCheck() {
   if (!hasImg()) return;
   stashActive();
-  const it = st.items[st.idx], set = snapSettings(), L = linOf(set);
+  const it = st.items[st.idx], set = snapSettings(), L = linOf(set), seq = STAGE_SEQ;
   if (!(L > 1)) { st.staged = false; applyStateToControls(); save(); return; }
   const key = stageKey(it, set, L);
   let m = STAGE_MEAS.get(key);
@@ -5069,7 +5079,9 @@ async function initStageCheck() {
     catch (e) { console.warn("나눠 확대 초기값 측정 실패", e); return; }
     finally { STAGE_PENDING.delete(key); }
   }
-  if (m.na || st.busy || st.items[st.idx] !== it) { updateStageLed(); return; }
+  // 재는 동안 사용자가 체크를 바꿨거나 「자동」이 정했거나, 배율·커널 등이 바뀌어 다른 조건이 됐으면 그 값을 그대로 둔다
+  const now = snapSettings();
+  if (m.na || st.busy || st.items[st.idx] !== it || STAGE_SEQ !== seq || stageKey(it, now, linOf(now)) !== key) { updateStageLed(); return; }
   st.staged = m.split > m.single + 0.005;
   applyStateToControls(); updateSizeNote(); save();
 }
@@ -5095,7 +5107,7 @@ function applyAutoBig(n) {                                   // 검증한 구성
   for (const k of ["kernel", "cons", "clamp", "usAmt", "usRad", "usThr", "usOvr", "aaAmt", "crAmt"]) st[k] = n[k];
   st.rlIter = Math.min(24, Math.round(st.rlIter * n.rlMul)); st.rlSig = Math.min(1.6, st.rlSig * n.rsMul);
   st.dnAmt = Math.min(0.2, st.dnAmt * n.dnMul); st.dcAmt = Math.min(1, st.dcAmt * n.dcMul);
-  st.staged = n.stage[0] !== "off";
+  st.staged = n.stage[0] !== "off"; STAGE_SEQ++;
   if (st.staged) { st.stageWay = n.stage[0]; st.stageMid = n.stage[1]; }
 }
 
@@ -5170,7 +5182,7 @@ async function autoStage(alive = () => true) {
       if (!best || v > best.v) best = { key: k, v };              // 방식끼리는 가장 높은 것
     }
     if (!alive()) return null;                                    // 그사이 다른 그림·다른 자동 요청이면 적용하지 않는다
-    st.staged = best.v > single + 0.005;                          // 한 번에 확대보다 나을 때만 켠다
+    st.staged = best.v > single + 0.005; STAGE_SEQ++;             // 한 번에 확대보다 나을 때만 켠다
     if (st.staged) st.stageWay = best.key;
   } finally { QUIET--; }
   applyStateToControls(); updateSizeNote(); save();
@@ -5401,6 +5413,17 @@ async function decodeImage(file) {
   return it;
 }
 
+/* 빈 캔버스 판별 — 표본 {x, y, a: 원래 알파} 가운데 원래 투명하지 않은 곳이 하나라도 있는데 캔버스에서는 모두 0이면 빈 캔버스.
+   원래 투명하지 않은 표본이 없으면 판별할 수 없으므로 빈 캔버스로 보지 않는다. */
+function canvasLooksBlank(cx, pts) {
+  let seen = false;
+  for (const q of pts) {
+    if (q.a === 0) continue;
+    seen = true;
+    if (cx.getImageData(q.x, q.y, 1, 1).data[3] !== 0) return false;
+  }
+  return seen;
+}
 /* 디코딩이 끝난 이미지 원소(ImageBitmap/HTMLImageElement)를 항목으로 만든다.
    파일 선택기 없이 들어온 이미지(붙여넣기)도 같은 경로를 탄다. */
 function itemFromSource(src, name, tag, bmp, cs) {
@@ -5417,12 +5440,18 @@ function itemFromSource(src, name, tag, bmp, cs) {
   const cx = c.getContext("2d", cs === "p3" ? { willReadFrequently: true, colorSpace: "display-p3" } : { willReadFrequently: true });
   if (!cx) bail("캔버스를 만들 수 없습니다 (메모리 부족)");
   try { cx.drawImage(src, 0, 0); } catch (e) { bail("캔버스에 그리지 못했습니다: " + errMsg(e)); }
-  // 한계를 넘으면 예외 없이 빈 캔버스를 주는 브라우저가 있다 — 모서리를 찍어 확인하고 한계를 학습한다
+  // 한계를 넘으면 예외 없이 빈 캔버스를 주는 브라우저가 있다 — 5×5 격자 25곳을 원본과 견주어 확인하고 한계를 학습한다
+  // (한 곳만 보면 그 화소가 원래 투명할 때 못 알아챈다)
   try {
-    const probe = document.createElement("canvas"); probe.width = 1; probe.height = 1;
-    const px2 = probe.getContext("2d"); px2.drawImage(src, w - 1, h - 1, 1, 1, 0, 0, 1, 1);
-    const want = px2.getImageData(0, 0, 1, 1).data[3], got = cx.getImageData(w - 1, h - 1, 1, 1).data[3];
-    if (want !== 0 && got === 0) { MAX_PIXELS = Math.floor(w * h * 0.85); bail("캔버스 한계를 넘었습니다. 상한을 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP로 낮췄습니다"); }
+    const G = 5, probe = document.createElement("canvas"); probe.width = G * G; probe.height = 1;
+    const px2 = probe.getContext("2d"), pts = [];
+    for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+      const x = Math.round((w - 1) * i / (G - 1)), y = Math.round((h - 1) * j / (G - 1));
+      px2.drawImage(src, x, y, 1, 1, pts.length, 0, 1, 1); pts.push({ x, y });
+    }
+    const want = px2.getImageData(0, 0, G * G, 1).data;
+    pts.forEach((q, k) => { q.a = want[k * 4 + 3]; });
+    if (canvasLooksBlank(cx, pts)) { MAX_PIXELS = Math.floor(w * h * 0.85); bail("캔버스 한계를 넘었습니다. 상한을 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP로 낮췄습니다"); }
   } catch (e) { if (/한계/.test(errMsg(e))) throw e; }
 
   let hasAlpha = false;                                    // 실패하면 불투명으로 보고 진행
