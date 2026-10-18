@@ -4835,7 +4835,10 @@ $("#btnAuto").addEventListener("click", () => {
           if (!g || g.v === st.scale) break;
           st.scale = g.v; syncScaleChips(); pick = applyAt();
         }
-        if (g && g.v !== st.scale) g = null;                // 끝내 자리 잡지 못했으면 보장한다고 하지 않는다
+        // 마지막으로 적용한 설정으로 다시 잰다 — 반복이 배율을 바꾸며 끝났으면 g는 그 앞 설정의 판정이다
+        // (배율에 따라 탐색값이 바뀌어 싼 설정·비싼 설정을 오가는 경우). 보장되지 않으면 보장한다고 하지 않는다
+        const r = renderBudget(st.scale, st.mode);
+        g = r.ok ? Object.assign({ v: st.scale, below: st.scale < AUTO_SCALE_MIN }, r) : null;
       }
       if (st.scaleAuto) {
         if (g) {
