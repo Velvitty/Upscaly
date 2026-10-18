@@ -2650,7 +2650,7 @@ function ENGINE_FACTORY() {
   // C: 세기 100%의 상수 — 사진 탐색용 9건(3장 × 4× 깨끗·4× 열화·8× 열화)에서 고주파 에너지가 정답과 같아지는(R = 1) 값의 중앙값.
   // 대역 2: 원본 σ1→2 대역으로 잰다(가장 고운 σ0→1 대역은 흐림·JPEG에 먼저 깎여, 깨끗한 입력과 열화 입력의 상수가 더 크게 갈렸다).
   // research/texture/tex_probe.js · research/results/texture.json
-  const TEX_C = 5.915, TEX_BAND = 2;
+  const TEX_C = 6.256, TEX_BAND = 2;
   function gaussKer(s) {
     const r = Math.max(1, Math.ceil(3 * s)), k = new Float32Array(2 * r + 1); let z = 0;
     for (let i = -r; i <= r; i++) { const v = Math.exp(-i * i / (2 * s * s)); k[i + r] = v; z += v; }
