@@ -5363,15 +5363,23 @@ async function decodeImage(file) {
   const deadline = performance.now() + decodeBudget(file);  // 세 경로가 나눠 쓰는 전체 예산
   const left = () => Math.max(5000, deadline - performance.now());
 
-  if (typeof createImageBitmap === "function") {
+  // 넓은 색역이면 P3 캔버스로 읽는다 (지원할 때만). 디코딩 전에 판별한다 — createImageBitmap의 기본 색 변환은
+  // 브라우저마다 달라 sRGB로 잘라 낼 수 있으므로, 넓은 색역 파일은 프로필을 지니는 <img> 경로를 먼저 쓴다
+  let wide = false;
+  if (P3_OK) { try { wide = await sniffWideGamut(file); } catch (e) { wide = false; } }
+  if (wide) {
+    try { src = await withTimeout(imgFromBlobUrl(file), left(), "시간 초과"); }
+    catch (e) { tried.push("blob URL " + errMsg(e)); }
+  }
+  if (!src && typeof createImageBitmap === "function") {
     try {
       bmp = await withTimeout(createImageBitmap(file, { imageOrientation: "from-image" }),
                               left(), "시간 초과");
       src = bmp;
     } catch (e) { bmp = null; tried.push("ImageBitmap " + errMsg(e)); }
-  } else tried.push("ImageBitmap 미지원");
+  } else if (!src) tried.push("ImageBitmap 미지원");
 
-  if (!src) {
+  if (!src && !wide) {
     try { src = await withTimeout(imgFromBlobUrl(file), left(), "시간 초과"); }
     catch (e) { tried.push("blob URL " + errMsg(e)); }
   }
@@ -5381,8 +5389,6 @@ async function decodeImage(file) {
   }
   if (!src) throw new Error(tag + " — " + tried.join(" / "));
 
-  let wide = false;                                         // 넓은 색역이면 P3 캔버스로 읽는다 (지원할 때만)
-  if (P3_OK) { try { wide = await sniffWideGamut(file); } catch (e) { wide = false; } }
   const it = itemFromSource(src, file.name, tag, bmp, wide ? "p3" : "srgb");
   if (bmp) bmp.close();
   if (/jpe?g/i.test(file.type) || /\.jpe?g$/i.test(file.name || "")) {
