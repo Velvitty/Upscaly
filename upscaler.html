@@ -2674,9 +2674,10 @@ function ENGINE_FACTORY() {
     h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
     return (h >>> 0) / 4294967296;
   }
-  function texFields(P, w, h, band) {                       // 원본 해상도: 국소 세기 a, 윤곽 가림 m. band 1: σ0→1 대역, 2: σ1→2 대역
+  // 밝기 축: 선형광이면 √ℓ(감마 근사), 「선형광에서 계산」을 끈 감마 값이면 이미 감마라 ℓ 그대로
+  function texFields(P, w, h, band, lin) {                  // 원본 해상도: 국소 세기 a, 윤곽 가림 m. band 1: σ0→1 대역, 2: σ1→2 대역
     const n = w * h, Y = new Float32Array(n), B = new Float32Array(n), tmp = new Float32Array(n);
-    for (let i = 0; i < n; i++) { const l = 0.2126 * P[0][i] + 0.7152 * P[1][i] + 0.0722 * P[2][i]; Y[i] = l > 0 ? Math.sqrt(l) : 0; }
+    for (let i = 0; i < n; i++) { const l = 0.2126 * P[0][i] + 0.7152 * P[1][i] + 0.0722 * P[2][i]; Y[i] = l > 0 ? (lin ? Math.sqrt(l) : l) : 0; }
     B.set(Y); gaussSep(B, w, h, gaussKer(1), tmp);
     const B2 = band === 2 ? gaussSep(Float32Array.from(B), w, h, gaussKer(Math.sqrt(3)), tmp) : null;   // σ1에 σ√3을 겹치면 σ2
     const E = new Float32Array(n), Jxx = new Float32Array(n), Jxy = new Float32Array(n), Jyy = new Float32Array(n);
@@ -2718,12 +2719,12 @@ function ENGINE_FACTORY() {
   function texMargin(L) { return gaussKer(0.375 * L).r + gaussKer(0.5 * L).r + 1; }
   /* Us: 결과 영역(RW×RH, 원점 RX0·RY0)의 채널 평면. 안쪽 타일만 고친다. P·pw·ph·px0·py0·psx·psy: 질감을 잴 원본 조각과 좌표 대응
      목표 분산 T = (세기·C)²·옥타브 수·(a·m)², 지금 있는 분산 E = 결과 밝기의 같은 대역 국소 평균 제곱 → 빠진 몫 √(T − E)만 얹는다 */
-  function addTexture(Us, RW, RH, M, t, P, pw, ph, px0, py0, psx, psy, L, amt, C, band) {
+  function addTexture(Us, RW, RH, M, t, P, pw, ph, px0, py0, psx, psy, L, amt, C, band, lin) {
     const oct = Math.log2(L);
     if (!(oct > 0.05) || pw < 3 || ph < 3) return;
-    const TF = texFields(P, pw, ph, band), NZ = texNoise(t.X0, t.Y0, t.TW, t.TH, L), gain = amt * C * Math.sqrt(oct);
+    const TF = texFields(P, pw, ph, band, lin), NZ = texNoise(t.X0, t.Y0, t.TW, t.TH, L), gain = amt * C * Math.sqrt(oct);
     const nR = RW * RH, Yo = new Float32Array(nR), tmp = new Float32Array(nR), A = Us.length > 3 ? Us[3] : null;
-    for (let i = 0; i < nR; i++) { const l = 0.2126 * Us[0][i] + 0.7152 * Us[1][i] + 0.0722 * Us[2][i]; Yo[i] = l > 0 ? Math.sqrt(l) : 0; }
+    for (let i = 0; i < nR; i++) { const l = 0.2126 * Us[0][i] + 0.7152 * Us[1][i] + 0.0722 * Us[2][i]; Yo[i] = l > 0 ? (lin ? Math.sqrt(l) : l) : 0; }
     const lo = gaussSep(Float32Array.from(Yo), RW, RH, gaussKer(0.375 * L), tmp);
     for (let i = 0; i < nR; i++) { const d = Yo[i] - lo[i]; Yo[i] = d * d; }
     const EX = gaussSep(Yo, RW, RH, gaussKer(0.5 * L), tmp);   // 지금 있는 고주파 분산
@@ -2744,9 +2745,9 @@ function ENGINE_FACTORY() {
         if (!(gap > 0)) continue;
         const d = Math.sqrt(gap) * NZ[y * t.TW + x], l = 0.2126 * Us[0][q] + 0.7152 * Us[1][q] + 0.0722 * Us[2][q];
         if (!(l > 1e-8)) continue;
-        const g = Math.sqrt(l), dd = d > 0.4 * g ? 0.4 * g : d < -0.4 * g ? -0.4 * g : d;   // 한 화소 변화는 밝기(√)의 ±40% 안 — 어두운 곳에 점이 튀지 않게
+        const g = lin ? Math.sqrt(l) : l, dd = d > 0.4 * g ? 0.4 * g : d < -0.4 * g ? -0.4 * g : d;   // 한 화소 변화는 밝기 축의 ±40% 안 — 어두운 곳에 점이 튀지 않게
         const s = (g + dd) / g;
-        let f = s * s;
+        let f = lin ? s * s : s;                             // 감마 값은 공통 비율을 곱해도 선형광에서 세 채널이 같은 비율(≈s^2.2)로 바뀐다
         if (f > 1) {                                         // 밝힐 때는 가장 큰 채널이 상한(알파·1)을 넘지 않게 — 한 채널만 잘려 색상이 바뀌지 않게
           const mx = Math.max(Us[0][q], Us[1][q], Us[2][q]), cap = A ? Math.min(1, A[q]) : 1;
           if (mx * f > cap) f = Math.max(1, cap / mx);
@@ -2857,8 +2858,8 @@ function ENGINE_FACTORY() {
     if (cfg.tex > 0 && !exact && !one) {
       const L = rf ? Math.max(cfg.rsx, cfg.rsy) : Math.max(sx, sy);
       const C = cfg.texC || TEX_C, band = cfg.texBand || TEX_BAND;
-      if (rf) addTexture(Us, RW, RH, M, t, rf.P, rf.w, rf.h, rf.x0, rf.y0, cfg.rsx, cfg.rsy, L, cfg.tex, C, band);
-      else addTexture(Us, RW, RH, M, t, cr.P, cw, ch, cx0, cy0, sx, sy, L, cfg.tex, C, band);
+      if (rf) addTexture(Us, RW, RH, M, t, rf.P, rf.w, rf.h, rf.x0, rf.y0, cfg.rsx, cfg.rsy, L, cfg.tex, C, band, cfg.lin);
+      else addTexture(Us, RW, RH, M, t, cr.P, cw, ch, cx0, cy0, sx, sy, L, cfg.tex, C, band, cfg.lin);
     }
     let Ar = null;
     if (cr.A) { Ar = Us[3]; for (let i = 0; i < Ar.length; i++) Ar[i] = Ar[i] < 0 ? 0 : Ar[i] > 1 ? 1 : Ar[i]; }
