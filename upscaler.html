@@ -390,6 +390,15 @@ dialog .detail.warn{color:var(--warn)}
         <p class="hint">반경 0은 배율에 맞춰 자동 계산합니다. 헤일로 허용치는 국소 진폭에 비례해 오버슈트를 부드럽게 제한하므로, 값을 낮추면 윤곽선 주변 흰 테두리가 줄어듭니다.</p>
       </div>
 
+      <div class="grp">
+        <h2>질감 되살리기 <em>새로 그림</em></h2>
+        <label class="row">
+          <span class="rowhead">세기 <b class="num" id="texAmtV">끔</b></span>
+          <input type="range" id="texAmt" min="0" max="1" step="0.05" value="0">
+        </label>
+        <p class="hint">크게 키우면 원본보다 고운 결(피부결·천·잎·모래)이 없어 밀랍처럼 매끈해집니다. 원본의 가장 고운 결을 재서, 결이 있던 자리에만 그만큼의 고운 결을 결과 해상도에 다시 얹습니다. 평탄한 하늘·단색면과 한 방향으로 뻗은 윤곽에는 얹지 않고, 밝기에만 얹어 색은 그대로입니다. <b>원본에 없던 결을 지어내는 기능</b>이라 원본과의 수치 차이는 커지고, 프리셋과 「자동」은 이 값을 바꾸지 않습니다. 진짜 결이 아니라 필름 그레인 같은 고운 결이라, <b>사진(특히 인물·피부·천)과 회화에 20~30%</b>를 권합니다. 100%는 사진에서 정답과 같은 양의 고운 결을 채우는 세기인데, 대개 잡음처럼 보이고 회화에서는 크게 넘칩니다. 일러스트·그래픽에는 맞지 않습니다.</p>
+      </div>
+
       <div class="grp grp-color">
         <h2>색 처리 <em>별도 기능</em></h2>
         <p class="hint sep">프리셋과 위쪽 「자동」은 확대·복원 설정만 고르고, 이 칸은 바꾸지 않습니다. 색을 고치고 싶을 때만 직접 조정하거나 「색 자동」을 누르세요.</p>
@@ -401,6 +410,8 @@ dialog .detail.warn{color:var(--warn)}
         <p class="hint" id="colorNote">지금 사진의 조명 색을 추정해 화이트밸런스 세기만 정합니다.</p>
         <p class="hint">광원 추정 셋(평균·에지·밝은 면)이 모두 인정하는 만큼만 보정합니다. 진짜 조명 캐스트는 밝은 면까지 물들여 셋이 함께 커지고, 피사체 고유색(주황 고양이, 노을)은 평균만 끌어당기기 때문입니다. 그래도 한 색이 화면을 덮은 사진은 틀릴 수 있으니 결과를 보고 조정하세요. 전체 밝기는 유지되고 이득은 0.55~1.8로 제한됩니다.</p>
         <label class="check"><input type="checkbox" id="linear" checked><span>선형광에서 계산 (권장)</span></label>
+        <label class="check"><input type="checkbox" id="dither8" checked><span>8비트 디더링 (그라데이션 띠 방지)</span></label>
+        <p class="hint">8비트로 바꿀 때 반올림 직전에 ±½단계보다 작은 고운 결을 섞어, 크게 키운 하늘·그라데이션에 계단 같은 띠가 생기지 않게 합니다. 화면과 8비트 저장에 같이 적용되고, 정확히 떨어지는 색(단색면·픽셀 아트·흑백)은 바뀌지 않습니다. 파일은 조금 커집니다.</p>
         <label class="check"><input type="checkbox" id="depth16"><span>16비트 PNG로 저장</span></label>
         <p class="hint">처리는 부동소수로 하고 마지막에만 양자화합니다. 16비트로 저장하면 그 마지막 단계에서도 계조를 잃지 않아 하늘·그라데이션에 띠가 생기지 않습니다. 저장할 때 타일을 한 번 더 계산하고 파일은 두 배 안팎으로 커집니다.</p>
         <p class="hint">sRGB 감마 공간에서 바로 보간하면 밝기가 어긋나 에지가 어둡게 뭉칩니다. 알파가 있으면 프리멀티플라이해 가장자리 색 번짐을 막습니다.</p>
@@ -570,6 +581,26 @@ function ENGINE_FACTORY() {
     return Math.round((E16[i] + (E16[i + 1] - E16[i]) * (f - i)) * 65535);
   }
   function enc16Gamma(v) { if (!(v > 0)) return 0; if (v >= 1) return 65535; return Math.round(v * 65535); }
+  /* 8비트 디더 — 반올림 직전의 연속 sRGB 값(위 16비트 표를 그대로 씀)에 결과 화면 좌표로 정해지는 잡음을 더한다.
+     · 잡음은 교차 기울기 잡음(IGN)이다. 위치만으로 정해지므로 타일·워커·순서와 관계없이 같은 값이 나온다.
+     · 세 채널에 같은 잡음을 쓴다 → R=G=B인 회색은 디더 뒤에도 회색, 잡음이 색 얼룩이 아니라 고운 밝기 결로 보인다.
+     · 진폭은 ±0.49단계. 표 보간 오차(최대 0.002단계)보다 넉넉히 작게 남겨, 정확한 코드값(최근접 복제·1× 항등·순수 흑백)은
+       디더를 켜도 바뀌지 않는다. 알파는 디더하지 않는다(반투명 가장자리 합성 오차를 늘리지 않게). */
+  const DITHER_AMP = 0.98;
+  function srgbF(v) {
+    if (!(v > 0)) return 0; if (v >= 1) return 1;
+    const f = Math.sqrt(v) * E16_N, i = f | 0;
+    return E16[i] + (E16[i + 1] - E16[i]) * (f - i);
+  }
+  function gammaF(v) { return v > 0 ? (v < 1 ? v : 1) : 0; }
+  function ditherTile(X0, Y0, TW, TH) {                     // 값 범위 [−0.5, 0.5) × 진폭
+    const d = new Float32Array(TW * TH);
+    for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
+      const a = 0.06711056 * (X0 + x) + 0.00583715 * (Y0 + y), f = 52.9829189 * (a - Math.floor(a));
+      d[y * TW + x] = (f - Math.floor(f) - 0.5) * DITHER_AMP;
+    }
+    return d;
+  }
 
   /* ── 재구성 커널 ── */
   function lanczosK(a) {
@@ -1905,7 +1936,12 @@ function ENGINE_FACTORY() {
       dv.setUint32(0, o.W); dv.setUint32(4, o.H);
       ih[8] = o.depth; ih[9] = o.ch === 4 ? 6 : 2; ih[10] = 0; ih[11] = 0; ih[12] = 0;
       emit(pngChunk('IHDR', ih));
-      emit(pngChunk('sRGB', new Uint8Array([0])));
+      if (o.iccp) {
+        // 넓은 색역: cICP(원색 12 = Display P3, 전달 13 = sRGB 곡선, 행렬 0 = RGB, 전체 범위)와 같은 뜻의 ICC 프로필.
+        // cICP를 읽는 프로그램은 그것을, 못 읽는 프로그램은 iCCP를 쓴다. sRGB 청크는 넣지 않는다(iCCP와 함께 둘 수 없다).
+        emit(pngChunk('cICP', new Uint8Array([12, 13, 0, 1])));
+        emit(pngChunk('iCCP', o.iccp));
+      } else emit(pngChunk('sRGB', new Uint8Array([0])));
       if (o.software) {
         // tEXt 는 Latin-1 전용 → 한글이 들어가므로 UTF-8 인 iTXt 사용
         // 형식: 키워드 \0 압축여부(0) 압축방식(0) 언어태그 \0 번역키워드 \0 본문(UTF-8)
@@ -2598,6 +2634,129 @@ function ENGINE_FACTORY() {
     }
   }
 
+  /* ── 질감 되살리기 ──
+     확대는 원본 나이퀴스트보다 고운 대역을 만들지 못해, 크게 키운 사진의 피부·천·잎이 밀랍처럼 매끈해진다.
+     자연 영상의 파워 스펙트럼은 대략 1/f²라 옥타브마다 에너지가 비슷하므로, 빠진 옥타브(log₂ 배율개)의 몫을
+     원본 대역에서 잰 국소 세기로 어림해, 원본 나이퀴스트 위 대역에만 있는 잡음을 결과 해상도에서 얹는다.
+     · 국소 세기 a: 감마 근사 밝기(√선형광)의 σ1→2 대역 RMS(원본 해상도)에 5×5 침식 — 좁은 윤곽·모서리의 세기는 지운다.
+       가장 고운 σ0→1 대역은 흐림·JPEG에 먼저 깎여, 깨끗한 입력과 열화 입력에서 맞는 세기가 더 크게 갈렸다.
+     · 윤곽 가림 m = (1 − 방향 일치도²)²: 한 방향으로 뻗은 윤곽에는 얹지 않는다. 평탄면은 a ≈ 0이라 그대로다.
+     · 빠진 몫만: 결과의 같은 대역 국소 분산 E를 재서 목표 분산 T에서 뺀 만큼(√(T − E))만 얹는다.
+     · 잡음: 결과 화면 좌표의 정수 해시 → 근사 가우시안 → 가우시안 저역(σ = 0.375·배율, 원본 나이퀴스트에서 반) 차분.
+       위치로만 정해지므로 타일·워커·순서와 관계없이 같고, 분산은 커널에서 정확히 계산해 1로 맞춘다.
+     · 밝기(√)에 더하고(한 화소 ±40% 안), 미리곱 색 세 채널에 같은 비율로 곱한다 → 색상·회색·알파 그대로.
+     기본은 끔(texAmt 0). 원본에 없던 결을 그려 넣으므로 PSNR은 내려간다 — 「자동」은 이 값을 건드리지 않는다.
+     결의 양만 맞춘 그레인이라 세기를 올리면 잡음처럼 보인다: 사진·회화에 20~30% 권장(README 9.8). */
+  // C: 세기 100%의 상수 — 사진 탐색용 9건(3장 × 4× 깨끗·4× 열화·8× 열화)에서 고주파 에너지가 정답과 같아지는(R = 1) 값의 중앙값.
+  // 대역 2: 원본 σ1→2 대역으로 잰다(가장 고운 σ0→1 대역은 흐림·JPEG에 먼저 깎여, 깨끗한 입력과 열화 입력의 상수가 더 크게 갈렸다).
+  // research/texture/tex_probe.js · research/results/texture.json
+  const TEX_C = 6.256, TEX_BAND = 2;
+  function gaussKer(s) {
+    const r = Math.max(1, Math.ceil(3 * s)), k = new Float32Array(2 * r + 1); let z = 0;
+    for (let i = -r; i <= r; i++) { const v = Math.exp(-i * i / (2 * s * s)); k[i + r] = v; z += v; }
+    for (let i = 0; i < k.length; i++) k[i] /= z;
+    return { k, r };
+  }
+  function gaussSep(A, w, h, K, tmp) {                      // 제자리, 가장자리 복제
+    const { k, r } = K;
+    for (let y = 0; y < h; y++) {
+      const o = y * w;
+      for (let x = 0; x < w; x++) { let v = 0; for (let i = -r; i <= r; i++) { const xx = x + i; v += k[i + r] * A[o + (xx < 0 ? 0 : xx > w - 1 ? w - 1 : xx)]; } tmp[o + x] = v; }
+    }
+    for (let y = 0; y < h; y++) {
+      const o = y * w;
+      for (let x = 0; x < w; x++) { let v = 0; for (let i = -r; i <= r; i++) { const yy = y + i; v += k[i + r] * tmp[(yy < 0 ? 0 : yy > h - 1 ? h - 1 : yy) * w + x]; } A[o + x] = v; }
+    }
+    return A;
+  }
+  function texHash(x, y, s) {                               // 정수 좌표 → [0, 1)
+    let h = Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1) ^ Math.imul(s, 0x9e3779b1);
+    h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  // 밝기 축: 선형광이면 √ℓ(감마 근사), 「선형광에서 계산」을 끈 감마 값이면 이미 감마라 ℓ 그대로
+  function texFields(P, w, h, band, lin) {                  // 원본 해상도: 국소 세기 a, 윤곽 가림 m. band 1: σ0→1 대역, 2: σ1→2 대역
+    const n = w * h, Y = new Float32Array(n), B = new Float32Array(n), tmp = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const l = 0.2126 * P[0][i] + 0.7152 * P[1][i] + 0.0722 * P[2][i]; Y[i] = l > 0 ? (lin ? Math.sqrt(l) : l) : 0; }
+    B.set(Y); gaussSep(B, w, h, gaussKer(1), tmp);
+    const B2 = band === 2 ? gaussSep(Float32Array.from(B), w, h, gaussKer(Math.sqrt(3)), tmp) : null;   // σ1에 σ√3을 겹치면 σ2
+    const E = new Float32Array(n), Jxx = new Float32Array(n), Jxy = new Float32Array(n), Jyy = new Float32Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, d = B2 ? B[i] - B2[i] : Y[i] - B[i]; E[i] = d * d;
+      const gx = 0.5 * (Y[y * w + (x < w - 1 ? x + 1 : x)] - Y[y * w + (x > 0 ? x - 1 : x)]);
+      const gy = 0.5 * (Y[(y < h - 1 ? y + 1 : y) * w + x] - Y[(y > 0 ? y - 1 : y) * w + x]);
+      Jxx[i] = gx * gx; Jxy[i] = gx * gy; Jyy[i] = gy * gy;
+    }
+    const K2 = gaussKer(1.5);
+    gaussSep(E, w, h, K2, tmp); gaussSep(Jxx, w, h, K2, tmp); gaussSep(Jxy, w, h, K2, tmp); gaussSep(Jyy, w, h, K2, tmp);
+    const m = Jxx;                                           // 버퍼 재사용
+    for (let i = 0; i < n; i++) {
+      const xx = Jxx[i], yy = Jyy[i], xy = Jxy[i], tr = xx + yy, df = Math.sqrt((xx - yy) * (xx - yy) + 4 * xy * xy);
+      const c = tr > 1e-12 ? df / tr : 0, q = 1 - c * c;
+      E[i] = Math.sqrt(E[i] > 0 ? E[i] : 0); m[i] = q * q;
+    }
+    // 좁은 구조 걷어 내기: 5×5 최솟값(가로 → 세로). 윤곽·가는 선·모서리처럼 폭이 좁은 강한 구조의 세기는 사라지고,
+    // 넓게 퍼진 결의 세기만 남는다(형태학적 침식). 이것이 없으면 모서리·교차점에 흰 점이 튄다.
+    const a = new Float32Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = Infinity; for (let k = -2; k <= 2; k++) { const xx = x + k < 0 ? 0 : x + k > w - 1 ? w - 1 : x + k, e = E[y * w + xx]; if (e < v) v = e; } tmp[y * w + x] = v; }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = Infinity; for (let k = -2; k <= 2; k++) { const yy = y + k < 0 ? 0 : y + k > h - 1 ? h - 1 : y + k, e = tmp[yy * w + x]; if (e < v) v = e; } a[y * w + x] = v; }
+    return { a, m };
+  }
+  function texNoise(X0, Y0, W, H, L) {                      // 원본 나이퀴스트 위 대역만 남긴 단위 분산 잡음 (결과 좌표)
+    const K = gaussKer(0.375 * L), r = K.r, w = W + 2 * r, h = H + 2 * r, n = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const X = X0 - r + x, Yy = Y0 - r + y;
+      n[y * w + x] = (texHash(X, Yy, 1) + texHash(X, Yy, 2) + texHash(X, Yy, 3) + texHash(X, Yy, 4) - 2) * 1.7320508;   // 분산 1
+    }
+    const lo = Float32Array.from(n); gaussSep(lo, w, h, K, new Float32Array(w * h));
+    let k0 = K.k[r], s2 = 0; for (let i = 0; i < K.k.length; i++) s2 += K.k[i] * K.k[i];
+    const inv = 1 / Math.sqrt(Math.max(1e-6, 1 - 2 * k0 * k0 + s2 * s2));
+    const out = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = (y + r) * w + x + r; out[y * W + x] = (n[i] - lo[i]) * inv; }
+    return out;
+  }
+  /* 결과 여백 — 결과의 고주파 에너지를 재는 창(σ 0.375L 차분 + σ 0.5L 평균). 이 바깥 여백(기존 M) 안쪽 값만 믿을 수 있다 */
+  function texMargin(L) { return gaussKer(0.375 * L).r + gaussKer(0.5 * L).r + 1; }
+  /* Us: 결과 영역(RW×RH, 원점 RX0·RY0)의 채널 평면. 안쪽 타일만 고친다. P·pw·ph·px0·py0·psx·psy: 질감을 잴 원본 조각과 좌표 대응
+     목표 분산 T = (세기·C)²·옥타브 수·(a·m)², 지금 있는 분산 E = 결과 밝기의 같은 대역 국소 평균 제곱 → 빠진 몫 √(T − E)만 얹는다 */
+  function addTexture(Us, RW, RH, M, t, P, pw, ph, px0, py0, psx, psy, L, amt, C, band, lin) {
+    const oct = Math.log2(L);
+    if (!(oct > 0.05) || pw < 3 || ph < 3) return;
+    const TF = texFields(P, pw, ph, band, lin), NZ = texNoise(t.X0, t.Y0, t.TW, t.TH, L), gain = amt * C * Math.sqrt(oct);
+    const nR = RW * RH, Yo = new Float32Array(nR), tmp = new Float32Array(nR), A = Us.length > 3 ? Us[3] : null;
+    for (let i = 0; i < nR; i++) { const l = 0.2126 * Us[0][i] + 0.7152 * Us[1][i] + 0.0722 * Us[2][i]; Yo[i] = l > 0 ? (lin ? Math.sqrt(l) : l) : 0; }
+    const lo = gaussSep(Float32Array.from(Yo), RW, RH, gaussKer(0.375 * L), tmp);
+    for (let i = 0; i < nR; i++) { const d = Yo[i] - lo[i]; Yo[i] = d * d; }
+    const EX = gaussSep(Yo, RW, RH, gaussKer(0.5 * L), tmp);   // 지금 있는 고주파 분산
+    const IX = new Int32Array(t.TW), FX = new Float32Array(t.TW);
+    for (let x = 0; x < t.TW; x++) {
+      const u = (t.X0 + x + 0.5) / psx - 0.5 - px0; let i = Math.floor(u); i = i < 0 ? 0 : i > pw - 2 ? pw - 2 : i;
+      const f = u - i; IX[x] = i; FX[x] = f < 0 ? 0 : f > 1 ? 1 : f;
+    }
+    for (let y = 0; y < t.TH; y++) {
+      const v = (t.Y0 + y + 0.5) / psy - 0.5 - py0; let j = Math.floor(v); j = j < 0 ? 0 : j > ph - 2 ? ph - 2 : j;
+      let fy = v - j; fy = fy < 0 ? 0 : fy > 1 ? 1 : fy;
+      const ro = (y + M) * RW + M;
+      for (let x = 0; x < t.TW; x++) {
+        const p = j * pw + IX[x], fx = FX[x];
+        const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+        const am = w00 * TF.a[p] * TF.m[p] + w10 * TF.a[p + 1] * TF.m[p + 1] + w01 * TF.a[p + pw] * TF.m[p + pw] + w11 * TF.a[p + pw + 1] * TF.m[p + pw + 1];
+        const q = ro + x, tv = gain * am, gap = tv * tv - EX[q];
+        if (!(gap > 0)) continue;
+        const d = Math.sqrt(gap) * NZ[y * t.TW + x], l = 0.2126 * Us[0][q] + 0.7152 * Us[1][q] + 0.0722 * Us[2][q];
+        if (!(l > 1e-8)) continue;
+        const g = lin ? Math.sqrt(l) : l, dd = d > 0.4 * g ? 0.4 * g : d < -0.4 * g ? -0.4 * g : d;   // 한 화소 변화는 밝기 축의 ±40% 안 — 어두운 곳에 점이 튀지 않게
+        const s = (g + dd) / g;
+        let f = lin ? s * s : s;                             // 감마 값은 공통 비율을 곱해도 선형광에서 세 채널이 같은 비율(≈s^2.2)로 바뀐다
+        if (f > 1) {                                         // 밝힐 때는 가장 큰 채널이 상한(알파·1)을 넘지 않게 — 한 채널만 잘려 색상이 바뀌지 않게
+          const mx = Math.max(Us[0][q], Us[1][q], Us[2][q]), cap = A ? Math.min(1, A[q]) : 1;
+          if (mx * f > cap) f = Math.max(1, cap / mx);
+        }
+        Us[0][q] *= f; Us[1][q] *= f; Us[2][q] *= f;
+      }
+    }
+  }
+
   /* ── 타일 하나 계산 ──
      job = { kind, cfg, tile:{X0,Y0,TW,TH}, crop:{x0,y0,w,h,P:[R,G,B],A,orig}, fmt:'rgba8'|'png16'|'png8', stats, diff } */
   function renderTile(job) {
@@ -2645,6 +2804,7 @@ function ENGINE_FACTORY() {
     const out = fmt === "rgba8" ? new Uint8ClampedArray(n * 4) : new Uint8Array(n * oc * (fmt === "png16" ? 2 : 1));
     const stats = { sum: 0, max: 0, n: 0, exact: 0 };
     const enc = cfg.lin ? encLinear : encGamma, enc16 = cfg.lin ? enc16Linear : enc16Gamma;
+    const DZ = cfg.dither && fmt !== "png16" ? ditherTile(t.X0, t.Y0, t.TW, t.TH) : null, encF = cfg.lin ? srgbF : gammaF;
     const nR = RW * RH;
     const t1 = new Float32Array(nR), t2 = cfg.usm ? new Float32Array(nR) : null, t3 = cfg.usm ? new Float32Array(nR) : null;
     let Gu = null;
@@ -2694,6 +2854,13 @@ function ENGINE_FACTORY() {
     }
     // 5) 윤곽 재작도 (채널별)
     if (CF) for (const c of chans) steepenRegion(Us[c], RW, RH, RX0, RY0, Gu, CF, cw, ch, cx0, cy0, sx, sy, c, ncF);
+    // 6) 질감 되살리기 — 나눠 확대면 원본(기준) 조각에서 잰다(중간 영상은 이미 보간돼 고운 대역이 없다)
+    if (cfg.tex > 0 && !exact && !one) {
+      const L = rf ? Math.max(cfg.rsx, cfg.rsy) : Math.max(sx, sy);
+      const C = cfg.texC || TEX_C, band = cfg.texBand || TEX_BAND;
+      if (rf) addTexture(Us, RW, RH, M, t, rf.P, rf.w, rf.h, rf.x0, rf.y0, cfg.rsx, cfg.rsy, L, cfg.tex, C, band, cfg.lin);
+      else addTexture(Us, RW, RH, M, t, cr.P, cw, ch, cx0, cy0, sx, sy, L, cfg.tex, C, band, cfg.lin);
+    }
     let Ar = null;
     if (cr.A) { Ar = Us[3]; for (let i = 0; i < Ar.length; i++) Ar[i] = Ar[i] < 0 ? 0 : Ar[i] > 1 ? 1 : Ar[i]; }
 
@@ -2708,7 +2875,9 @@ function ENGINE_FACTORY() {
           const k = y * t.TW + x;
           if (fmt === "png16") { const q = enc16(v), o = (k * oc + c) * 2; out[o] = q >> 8; out[o + 1] = q & 255; }
           else {
-            const b = enc(v);
+            let b;
+            if (DZ) { b = Math.floor(encF(v) * 255 + 0.5 + DZ[k]); b = b < 0 ? 0 : b > 255 ? 255 : b; }
+            else b = enc(v);
             out[fmt === "rgba8" ? k * 4 + c : k * oc + c] = b;
             if (one && job.stats && cr.orig) {                 // 1×: 원래 파일 바이트와의 차이 = 지운 양
               const e = Math.abs(b - cr.orig[(oy * cw + t.X0 + x - cx0) * 4 + c]);
@@ -2746,7 +2915,7 @@ function ENGINE_FACTORY() {
   return {
     PORT, AC, KER, boxRadii, renderTile, restoreBand,
     guidePlane, interleave3, immerSigma, dcciStage, tapsFor, ediUpsample, clampToCells,
-    consistencyPlane, rescaleErr, steepenPlane, gammaToLin, dctRestore, pixelArtUpscale,
+    consistencyPlane, rescaleErr, steepenPlane, gammaToLin, dctRestore, pixelArtUpscale, texMargin,
   };
 }
 const ENGINE = ENGINE_FACTORY();
@@ -2862,13 +3031,14 @@ function tcPut(k, v) {
   tcTrim(k);
 }
 function tcDropPrefix(pre) { for (const [k, v] of TC) if (k.startsWith(pre)) { TC.delete(k); TCpx -= v.px; } }
-function tileCanvas(bytes, w, h) {
+function tileCanvas(bytes, w, h, cs) {                    // cs "p3": 결과 바이트가 Display P3 값이다
+  const p3 = cs === "p3";
   for (let attempt = 0; attempt < 2; attempt++) {
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
-    const cx = c.getContext("2d");
+    const cx = c.getContext("2d", p3 ? { colorSpace: "display-p3" } : undefined);
     if (cx) {
-      cx.putImageData(new ImageData(bytes, w, h), 0, 0);
+      cx.putImageData(p3 ? new ImageData(bytes, w, h, { colorSpace: "display-p3" }) : new ImageData(bytes, w, h), 0, 0);
       let ok = false;
       try { ok = bytes[bytes.length - 1] === 0 || cx.getImageData(w - 1, h - 1, 1, 1).data[3] !== 0; } catch (e) { ok = false; }
       if (ok) return c;
@@ -2886,15 +3056,18 @@ const SRCC = new Map();
 function srcGet(k) { const v = SRCC.get(k); if (v) { SRCC.delete(k); SRCC.set(k, v); } return v; }
 function srcPut(k, v) { SRCC.set(k, v); while (SRCC.size > 2) SRCC.delete(SRCC.keys().next().value); }
 function srcDropUid(uid) { for (const k of [...SRCC.keys()]) if (k.startsWith(uid + "|")) SRCC.delete(k); }
-function srcBytes() {
-  let b = 0;
-  for (const v of SRCC.values()) b += v.sw * v.sh * ((v.P ? 12 : 0) + (v.A ? 4 : 0)) + (v.d ? v.d.length : 0) + (v.ref ? v.ref.sw * v.ref.sh * 12 : 0);
-  return b;
+function srcEntryBytes(v) { return v.sw * v.sh * ((v.P ? 12 : 0) + (v.A ? 4 : 0)) + (v.d ? v.d.length : 0) + (v.ref ? v.ref.sw * v.ref.sh * (12 + (v.ref.A ? 4 : 0)) : 0); }
+function srcBytes() { let b = 0; for (const v of SRCC.values()) b += srcEntryBytes(v); return b; }
+/* 열쇠 cur가 아닌 준비된 원본 — all이면 전부(새로 준비하는 동안은 둘 다 남아 있다), 아니면 가장 최근 하나(새 것을 넣으면 하나만 남는다) */
+function srcOtherBytes(cur, all) {
+  let sum = 0, last = 0;
+  for (const [k, v] of SRCC) if (k !== cur) { last = srcEntryBytes(v); sum += last; }
+  return all ? sum : last;
 }
 
 /* ── 설정 스냅숏 — 결과는 만들 때의 설정을 그대로 품는다 (저장·재계산이 늘 같은 결과를 낸다) ── */
 const SET_KEYS = ["scale", "mode", "kernel", "linear", "cons", "clamp", "crAmt", "dcAmt", "dnAmt", "dnRad", "rlIter", "rlSig",
-                  "usAmt", "usRad", "usThr", "usOvr", "wbAmt", "aaAmt", "dbAmt", "staged", "stageWay", "stageMid"];
+                  "usAmt", "usRad", "usThr", "usOvr", "wbAmt", "aaAmt", "dbAmt", "staged", "stageWay", "stageMid", "dither8", "texAmt"];
 function snapSettings() { const o = {}; for (const k of SET_KEYS) o[k] = st[k]; return o; }
 function linOf(set) { return set.mode === "area" ? Math.sqrt(set.scale) : set.scale; }
 /* 나눠 확대 — 체크·나누는 방식·단계 사이 선명화는 사용자가 정한 대로 동작한다(더 나빠도 켜면 나눈다).
@@ -3027,21 +3200,23 @@ async function prepareSource(it, set, p0, p1, opts) {
     for (let s = 0; s < steps.length - 1; s++) {             // 마지막 단계 전까지: 커널 확대 → 셀 범위 → 선명화
       const f = steps[s], mw = Math.max(1, Math.round(sw * f)), mh = Math.max(1, Math.round(sh * f)), nm = mw * mh;
       const WXm = buildWeights(sw, mw, kernel), WYm = buildWeights(sh, mh, kernel), tmpm = new Float32Array(mw * sh);
-      const M = [new Float32Array(nm), new Float32Array(nm), new Float32Array(nm)];
-      const G = useEdi ? ENGINE.guidePlane(P, sw * sh, lin) : null;          // DCCI 중간 단계도 방향 보간으로
-      for (let c = 0; c < 3; c++) {
-        if (useEdi) await ENGINE.ediUpsample(P[c], G, sw, sh, mw, mh, 10 * sig8, M[c], null, p1 - 4, p1 - 2, (s + 1) + "단계 확대");
-        else await resamplePlane(P[c], sw, sh, mw, mh, WXm, WYm, tmpm, M[c], p1 - 4, p1 - 2, (s + 1) + "단계 확대");
-        if (set.clamp) clampToCells(M[c], mw, mh, P[c], sw, sh);
+      // 알파도 색과 같은 연산(같은 방향 가중치·셀 범위·선명화)을 거친다 — 색은 미리곱 값이라, 다르게 거르면 반투명 가장자리 색이 틀어진다
+      const src = A ? [P[0], P[1], P[2], A] : P, M = src.map(() => new Float32Array(nm));
+      const G = useEdi ? ENGINE.guidePlane(P, sw * sh, lin) : null;          // DCCI 중간 단계도 방향 보간으로 (방향은 색에서)
+      for (let c = 0; c < src.length; c++) {
+        const lab = (s + 1) + (c < 3 ? "단계 확대" : "단계 알파");
+        if (useEdi) await ENGINE.ediUpsample(src[c], G, sw, sh, mw, mh, 10 * sig8, M[c], null, p1 - 4, p1 - 2, lab);
+        else await resamplePlane(src[c], sw, sh, mw, mh, WXm, WYm, tmpm, M[c], p1 - 4, p1 - 2, lab);
+        if (set.clamp) clampToCells(M[c], mw, mh, src[c], sw, sh);
       }
-      let Am = null;
-      if (A) { Am = new Float32Array(nm); await resamplePlane(A, sw, sh, mw, mh, WXm, WYm, tmpm, Am, p1 - 2, p1 - 1, (s + 1) + "단계 알파"); }
       if (set.usAmt > 0 && mid > 0) {
         const s1 = set.usRad > 0 ? set.usRad : Math.min(6, Math.max(0.6, f * 0.42));
         const u1 = new Float32Array(nm), u2 = new Float32Array(nm), u3 = new Float32Array(nm);
-        for (let c = 0; c < 3; c++) await unsharp(M[c], mw, mh, s1, set.usAmt * mid, set.usThr, set.usOvr, u1, u2, u3, p1 - 1, p1, (s + 1) + "단계 다듬기");
+        for (let c = 0; c < M.length; c++) await unsharp(M[c], mw, mh, s1, set.usAmt * mid, set.usThr, set.usOvr, u1, u2, u3, p1 - 1, p1, (s + 1) + "단계 다듬기");
       }
-      P = M; A = Am; sw = mw; sh = mh;
+      const Am = A ? M[3] : null;
+      if (Am) for (let i = 0; i < nm; i++) Am[i] = Am[i] < 0 ? 0 : Am[i] > 1 ? 1 : Am[i];
+      P = M.slice(0, 3); A = Am; sw = mw; sh = mh;
     }
   }
   const v = { key, d: sw === sw0 && sh === sh0 ? d : null, sw, sh, P, A, sig8, lin, wbGain, steps, ref };
@@ -3062,6 +3237,8 @@ function buildCfg(src, set, dw, dh, hasAlpha) {
     usAmt: set.usAmt, usThr: set.usThr, usOvr: set.usOvr,
     aa: set.aaAmt > 0 && !exact, aaAmt: set.aaAmt, crisp: set.crAmt > 0 && !exact, crAmt: set.crAmt,
     sig8: src.sig8, nOff: 10 * src.sig8, Lx: sx, Ly: sy,
+    dither: set.dither8 ? 1 : 0,
+    tex: set.texAmt > 0 && !exact ? set.texAmt : 0,
   };
   if (src.ref) { cfg.rsx = dw / src.ref.sw; cfg.rsy = dh / src.ref.sh; }   // 나눠 확대: 기준은 원본
   cfg.margin = outMarginFor(cfg);
@@ -3104,7 +3281,7 @@ async function renderTilesInto(desc, src, list, diff, onEach) {
     const t = tileRect(desc, tx, ty);
     const [msg, tr] = tileJob(desc, src, t, "rgba8", diff);
     const r = await poolRun(msg, tr);
-    tcPut(tileKey(desc, tx, ty, diff), { cv: tileCanvas(r.out, t.TW, t.TH), px: t.TW * t.TH });
+    tcPut(tileKey(desc, tx, ty, diff), { cv: tileCanvas(r.out, t.TW, t.TH, desc.cs), px: t.TW * t.TH });
     if (!diff) addStats(desc, tx, ty, r.stats);
     if (onEach) onEach(tx, ty);
   });
@@ -3146,8 +3323,8 @@ async function exportPng(it, depth, p0, p1) {
     return exportViaCanvas(it, p0, p1);
   }
   const src = await prepareSource(it, desc.set, p0, p0 + span * 0.1);
-  const chunks = [];
-  const enc = PORT.createPngEncoder({ W, H, ch, depth, software: "확대기 (" + (KERNEL_LABEL[desc.set.kernel] || desc.set.kernel) + ", ×" + desc.set.scale + ")" },
+  const chunks = [], iccp = desc.cs === "p3" ? await p3IccpChunk() : null;
+  const enc = PORT.createPngEncoder({ W, H, ch, depth, iccp, software: "확대기 (" + (KERNEL_LABEL[desc.set.kernel] || desc.set.kernel) + ", ×" + desc.set.scale + ")" },
                                     (c) => chunks.push(c));
   const q0 = p0 + span * 0.1, bands = [];
   if (depth === 8) {
@@ -3203,23 +3380,27 @@ async function exportViaCanvas(it, p0, p1) {
   if (desc.W * desc.H > MAX_PIXELS) throw new Error("이 브라우저에서는 캔버스 한계를 넘는 크기를 저장할 수 없습니다");
   const cv = document.createElement("canvas");
   cv.width = desc.W; cv.height = desc.H;
-  const cx = cv.getContext("2d");
+  const cx = cv.getContext("2d", desc.cs === "p3" ? { colorSpace: "display-p3" } : undefined);
   if (!cx) throw new Error("캔버스를 만들 수 없습니다");
   const all = [];
-  let lastA = 255;                                          // 오른쪽 아래 화소의 원래 알파 — 빈 캔버스 판별용
+  let vis = null;                                           // 빈 캔버스 판별용 — 결과에서 보이는(알파 > 0) 화소 하나의 자리
   for (let ty = 0; ty < desc.nTy; ty++) for (let tx = 0; tx < desc.nTx; tx++) all.push([tx, ty]);
   let done = 0;
   await runLimited(all, POOL.size * 2, async ([tx, ty]) => {
     const t = tileRect(desc, tx, ty);
     let tl = tcGet(tileKey(desc, tx, ty, 0));
-    if (!tl) { const [msg, tr] = tileJob(desc, src, t, "rgba8", 0); tl = { cv: tileCanvas((await poolRun(msg, tr)).out, t.TW, t.TH) }; }
-    if (tx === desc.nTx - 1 && ty === desc.nTy - 1) lastA = readTile(tl, t.TW, t.TH)[(t.TW * t.TH - 1) * 4 + 3];
+    if (!tl) { const [msg, tr] = tileJob(desc, src, t, "rgba8", 0); tl = { cv: tileCanvas((await poolRun(msg, tr)).out, t.TW, t.TH, desc.cs) }; }
+    if (!vis) {                                             // 아직 못 찾았으면 이 타일에서 찾는다 (보통 첫 타일에서 끝난다)
+      const td = tl.cv.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, t.TW, t.TH).data;
+      for (let i = 3; i < td.length; i += 4) if (td[i] !== 0) { const k = (i - 3) >> 2; vis = { x: t.X0 + k % t.TW, y: t.Y0 + ((k / t.TW) | 0) }; break; }
+    }
     cx.drawImage(tl.cv, t.X0, t.Y0);
     done++; setProgress(p0 + (p1 - p0) * (done / all.length), "PNG 조립 " + done + " / " + all.length);
   });
   // 한계를 넘으면 예외 없이 빈 캔버스가 나오는 브라우저가 있다. 실제로 찍어 확인한다.
   let ok = false;
-  try { ok = cx.getImageData(desc.W - 1, desc.H - 1, 1, 1).data[3] !== 0 || lastA === 0; } catch (e) { ok = false; }
+  // 보이는 화소가 있는 결과인데 캔버스의 그 자리가 투명하면 빈 캔버스. 결과가 완전히 투명하면 판별할 것이 없다
+  try { ok = !vis || cx.getImageData(vis.x, vis.y, 1, 1).data[3] !== 0; } catch (e) { ok = false; }
   if (!ok) {
     MAX_PIXELS = Math.floor(desc.W * desc.H * 0.85);       // 이 브라우저의 실제 한계를 학습
     updateSizeNote();
@@ -3243,6 +3424,7 @@ function outMarginFor(cfg) {
     m += Math.ceil(2 * span * Math.max(1, Math.round(cfg.aaAmt * 4))) + 2;
   }
   if (cfg.crisp) m += 2;
+  if (cfg.tex > 0) m += ENGINE.texMargin(cfg.rsx ? Math.max(cfg.rsx, cfg.rsy) : Math.max(cfg.Lx, cfg.Ly));   // 질감: 결과 고주파 에너지 창
   return m;
 }
 /* 타일 계산에 필요한 원본 영역 — 보간 지지 + 정합 여백(AC) + 방향장·윤곽 모형 여백 */
@@ -3253,7 +3435,7 @@ function cropRectFor(cfg, t) {
   const K = ENGINE.KER[cfg.kernel] || ENGINE.KER.catrom;
   const passes = cfg.cons ? (cfg.clamp ? 2 : 1) : 0;         // 정합 패스마다 여백이 한 겹씩 쌓인다
   const ratio = cfg.rsx ? Math.max(cfg.rsx / cfg.sx, cfg.rsy / cfg.sy) : 1;   // 기준(원본) 화소 1개 = 이 조각 화소 ratio개
-  const A = (cfg.kernel === "edi" ? 8 : Math.ceil(K.support) + 2) + Math.ceil(passes * (ENGINE.AC + 2) * ratio) + 6;
+  const A = (cfg.kernel === "edi" ? 8 : Math.ceil(K.support) + 2) + Math.ceil(passes * (ENGINE.AC + 2) * ratio) + 6 + (cfg.tex > 0 ? 10 : 0);   // 질감: 원본 통계 창
   return { x0: x0 - A, y0: y0 - A, w: x1 - x0 + 1 + 2 * A, h: y1 - y0 + 1 + 2 * A };
 }
 /* 나눠 확대의 기준 원본 조각 — 셀 범위·정합이 읽는 범위 (보간은 하지 않으므로 커널 여백 없음) */
@@ -3261,7 +3443,7 @@ function cropRectRef(cfg, t) {
   const M = cfg.margin, RX0 = t.X0 - M, RY0 = t.Y0 - M, RW = t.TW + 2 * M, RH = t.TH + 2 * M;
   const x0 = Math.floor((RX0 + 0.5) / cfg.rsx - 0.5), x1 = Math.ceil((RX0 + RW - 0.5) / cfg.rsx - 0.5);
   const y0 = Math.floor((RY0 + 0.5) / cfg.rsy - 0.5), y1 = Math.ceil((RY0 + RH - 0.5) / cfg.rsy - 0.5);
-  const passes = cfg.cons ? (cfg.clamp ? 2 : 1) : 0, A = 2 + passes * (ENGINE.AC + 2) + 6;
+  const passes = cfg.cons ? (cfg.clamp ? 2 : 1) : 0, A = 2 + passes * (ENGINE.AC + 2) + 6 + (cfg.tex > 0 ? 10 : 0);
   return { x0: x0 - A, y0: y0 - A, w: x1 - x0 + 1 + 2 * A, h: y1 - y0 + 1 + 2 * A };
 }
 /* 준비된 원본 평면에서 조각을 복제 확장으로 잘라 낸다 (워커로 넘길 사본) */
@@ -3741,7 +3923,7 @@ function autoAnalysisImage(cv) {
     x.drawImage(src, 0, 0, w2 * 2, h2 * 2, 0, 0, w2, h2);
     src = c; w = w2; h = h2;
   }
-  const d = src.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  const d = src.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h, srgbRead()).data;
   const f = Math.max(1, Math.ceil(Math.max(w, h) / 512)), aw = Math.floor(w / f), ah = Math.floor(h / f);
   const A = new Float64Array(aw * ah * 3), inv = 1 / (f * f);
   for (let y = 0; y < ah; y++) for (let x = 0; x < aw; x++) {
@@ -3893,7 +4075,7 @@ function analyzeImage(cv, jq) {
   const bxv = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5];
   for (const y0 of YO) for (const x0 of XO) {
     const pw0 = Math.min(ps, W - x0), ph0 = Math.min(ps, H - y0);
-    const pd = sctx.getImageData(x0, y0, pw0, ph0).data;
+    const pd = sctx.getImageData(x0, y0, pw0, ph0, srgbRead()).data;
     const ph = Math.floor(ph0 / 8) * 8, pw = Math.floor(pw0 / 8) * 8;
     if (ph < 8 || pw < 8) continue;
     for (let by = 0; by < ph; by += 8) for (let bx = 0; bx < pw; bx += 8) {
@@ -3999,7 +4181,7 @@ function autoTuneMeasures(cv, A, w, h) {
   const NB = 512, noiseHist = new Uint32Array(NB);
   let noiseCnt = 0, sharpSum = 0, sharpCnt = 0, onGrid = 0, offGrid = 0, onCnt = 0, offCnt = 0;
   for (const [sx, sy] of spots) {
-    const d2 = x2.getImageData(Math.max(0, sx), Math.max(0, sy), ps, ps).data;
+    const d2 = x2.getImageData(Math.max(0, sx), Math.max(0, sy), ps, ps, srgbRead()).data;
     const L = new Float32Array(ps * ps);
     for (let i = 0; i < ps * ps; i++) L[i] = (0.299 * d2[i * 4] + 0.587 * d2[i * 4 + 1] + 0.114 * d2[i * 4 + 2]) / 255;
     for (let y = 2; y < ps - 2; y++) for (let x = 2; x < ps - 2; x++) {
@@ -4228,6 +4410,239 @@ const STREAM_OK = typeof CompressionStream !== "undefined";
 /* 결과 크기 한계 — 스트리밍 저장이 되면 타일 한계, 안 되면 이전 판처럼 캔버스 한계(학습값 포함) */
 function outLimits() { return STREAM_OK ? [MAX_OUT_DIM, MAX_OUT_PX] : [MAX_DIM, MAX_PIXELS]; }
 const MAX_IMAGES = 20;          // 동시에 열 수 있는 장수
+
+/* ── 넓은 색역 (Display P3) ──
+   휴대폰 사진은 sRGB보다 넓은 Display P3로 찍히는 일이 많다. 보통 캔버스(sRGB)로 읽으면 브라우저가 sRGB 밖의 선명한
+   빨강·초록을 sRGB 안으로 눌러 담아, 확대 결과가 원본보다 칙칙해진다. 원본 파일의 색 프로필이 sRGB보다 넓으면
+   원본·타일·화면 캔버스를 display-p3로 두고, 저장 PNG에는 Display P3 프로필(iCCP)과 cICP를 붙인다.
+   Display P3는 sRGB와 같은 전달 곡선을 쓰므로, 선형광 표와 엔진의 계산은 그대로다(원색만 다르다).
+   브라우저가 P3 캔버스를 지원하지 않으면 예전처럼 sRGB로 읽는다. */
+const P3_OK = (function () {
+  try {
+    const x = document.createElement("canvas").getContext("2d", { colorSpace: "display-p3" });
+    return !!(x && typeof x.getContextAttributes === "function" && x.getContextAttributes().colorSpace === "display-p3");
+  } catch (e) { return false; }
+})();
+const SRGB_D50 = [[0.436041, 0.222485, 0.013920], [0.385113, 0.716905, 0.097067], [0.143046, 0.060610, 0.713913]];   // r·g·b XYZ (D50)
+const DISPLAY_P3_D50 = [[0.515119, 0.241189, -0.001050], [0.291978, 0.692244, 0.041879], [0.157103, 0.066567, 0.784071]];
+function str4(p, o) { return String.fromCharCode(p[o], p[o + 1], p[o + 2], p[o + 3]); }
+/* ICC 프로필이 sRGB보다 넓은 RGB 색역인가 — 원색 행렬(rXYZ·gXYZ·bXYZ)을 sRGB와 비교, 행렬이 없으면 설명 문자열로 */
+function iccIsWide(p) {
+  if (!p || p.length < 132 || str4(p, 16) !== "RGB ") return false;
+  const dv = new DataView(p.buffer, p.byteOffset, p.byteLength), n = Math.min(dv.getUint32(128), 200), tag = {};
+  for (let i = 0; i < n && 144 + i * 12 <= p.length; i++) { const o = 132 + i * 12; tag[str4(p, o)] = [dv.getUint32(o + 4), dv.getUint32(o + 8)]; }
+  const xyz = (s) => { const t = tag[s]; return t && t[0] + 20 <= p.length && str4(p, t[0]) === "XYZ " ? [0, 1, 2].map((k) => dv.getInt32(t[0] + 8 + 4 * k) / 65536) : null; };
+  const M = [xyz("rXYZ"), xyz("gXYZ"), xyz("bXYZ")];
+  if (M[0] && M[1] && M[2]) { let d = 0; M.forEach((v, j) => v.forEach((x, k) => { d = Math.max(d, Math.abs(x - SRGB_D50[j][k])); })); return d > 0.02; }
+  let desc = "";
+  const t = tag.desc;
+  if (t && t[0] + 12 <= p.length) {
+    const ty = str4(p, t[0]);
+    if (ty === "desc") { const len = dv.getUint32(t[0] + 8); for (let i = 0; i < len - 1 && t[0] + 12 + i < p.length; i++) desc += String.fromCharCode(p[t[0] + 12 + i]); }
+    else if (ty === "mluc" && t[0] + 28 <= p.length) {
+      const len = dv.getUint32(t[0] + 20), off = dv.getUint32(t[0] + 24);
+      for (let i = 0; i + 1 < len && t[0] + off + i + 1 < p.length; i += 2) desc += String.fromCharCode(dv.getUint16(t[0] + off + i));
+    }
+  }
+  return /p3|adobe|2020|prophoto|wide/i.test(desc) && !/srgb/i.test(desc);
+}
+/* 「자동」 분석은 sRGB 값으로 잰다(분류기·색 자동이 sRGB 기준). P3 캔버스에서도 브라우저가 sRGB로 바꿔 넘기게 요청한다 */
+function srgbRead() { return P3_OK ? { colorSpace: "srgb" } : undefined; }
+/* zlib 풀기 — 믿을 수 없는 파일의 작은 압축 폭탄에 대비해 max 바이트를 넘으면 멈춘다 */
+async function inflateZlib(u8, max) {
+  const rd = new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate")).getReader(), parts = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await rd.read();
+    if (done) break;
+    n += value.length;
+    if (n > max) { try { await rd.cancel(); } catch (e) {} throw new Error("ICC 프로필이 너무 큽니다"); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(n); let k = 0;
+  for (const p of parts) { out.set(p, k); k += p.length; }
+  return out;
+}
+/* 파일의 [o, o+len)를 읽는다 — 머리 2 MB를 먼저 읽어 두고, 그 밖은 읽을 자리부터 256 KB 창으로 다시 읽는다.
+   색 정보 앞에 큰 메타데이터(JPEG 확장 XMP·PNG 글 청크)나 큰 상자(AVIF mdat)가 있어도 사이를 다 읽지 않고 건너뛴다 */
+function fileWindow(file) {
+  let base = 0, buf = new Uint8Array(0);
+  return async (o, len) => {
+    const end = Math.min(file.size, o + len);
+    if (o >= end) return new Uint8Array(0);
+    if (o < base || end > base + buf.length) {
+      base = o; buf = new Uint8Array(await file.slice(o, Math.min(file.size, Math.max(end, o + (o ? 1 << 18 : 1 << 21)))).arrayBuffer());
+    }
+    return buf.subarray(o - base, end - base);
+  };
+}
+/* 파일의 색 프로필을 찾아 넓은 색역인지 본다 (JPEG APP2 · PNG cICP/iCCP · WebP ICCP · AVIF/HEIF colr). 모르면 false.
+   조각·청크·상자 머리를 차례로 따라가며 필요한 곳만 읽는다(머리 수는 최대 65536개, 조각 하나는 16 MB까지) */
+async function sniffWideGamut(file) {
+  const at = fileWindow(file), N = file.size, MAXN = 65536, MAXP = 16 << 20;
+  const p = await at(0, 1 << 21), n = p.length;
+  const dv = new DataView(p.buffer, p.byteOffset, p.byteLength);
+  const be32 = (q, o) => ((q[o] << 24) | (q[o + 1] << 16) | (q[o + 2] << 8) | q[o + 3]) >>> 0;
+  if (p[0] === 0xff && p[1] === 0xd8) {                                  // JPEG — APP2 "ICC_PROFILE" 조각을 순서대로 잇는다
+    const parts = [];
+    for (let o = 2, c = 0; o + 4 <= N && c < MAXN; c++) {
+      const q = await at(o, 4);
+      if (q.length < 4 || q[0] !== 0xff) break;
+      const m = q[1];
+      if (m === 0xff) { o++; continue; }                                 // 마커 앞 채움 바이트(0xFF 반복)
+      if (m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { o += 2; continue; }   // 길이가 없는 마커
+      if (m === 0xda || m === 0xd9) break;
+      const len = (q[2] << 8) | q[3];
+      if (m === 0xe2 && len > 16) {
+        const d = await at(o + 4, len - 2);                               // "ICC_PROFILE\0" · 순번 · 개수 · 프로필 조각
+        if (str4(d, 0) === "ICC_" && str4(d, 4) === "PROF") parts.push([d[12], d.subarray(14)]);
+      }
+      o += 2 + len;
+    }
+    if (!parts.length) return false;
+    parts.sort((a, b) => a[0] - b[0]);
+    const tot = parts.reduce((s, q) => s + q[1].length, 0), icc = new Uint8Array(tot); let k = 0;
+    for (const [, q] of parts) { icc.set(q, k); k += q.length; }
+    return iccIsWide(icc);
+  }
+  if (p[0] === 0x89 && str4(p, 1).slice(0, 3) === "PNG") {             // PNG — IDAT 앞 색 청크를 모두 본 뒤 cICP > iCCP > sRGB 순으로
+    let cicp = null, iccp = null;                                         // (명세상 청크 순서는 자유이고 cICP가 가장 우선)
+    for (let o = 8, c = 0; o + 12 <= N && c < MAXN; c++) {
+      const q = await at(o, 8);
+      if (q.length < 8) break;
+      const len = be32(q, 0), ty = str4(q, 4);
+      if (ty === "IDAT" || ty === "IEND") break;
+      if (ty === "cICP" && len >= 4 && cicp == null) cicp = (await at(o + 8, 1))[0];
+      if (ty === "iCCP" && len <= MAXP && !iccp) iccp = await at(o + 8, len);
+      o += 12 + len;
+    }
+    // cICP 원색 번호(H.273): 1 = BT.709(sRGB), 그 밖의 정의된 번호는 넓은 쪽으로 본다. 2(지정 안 됨)·예약 번호는 원색을 알려 주지 않으므로
+    // 알아듣지 못한 것으로 보고 iCCP로 넘어간다(PNG 명세: cICP는 알아들을 때만 가장 우선)
+    if (cicp != null && [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 22].includes(cicp)) return cicp !== 1;
+    if (iccp) {
+      let z = 0; while (z < iccp.length && iccp[z] !== 0) z++;
+      try { return iccIsWide(await inflateZlib(iccp.subarray(z + 2), 4 << 20)); } catch (e) { return false; }   // ICC는 보통 1 MB 아래
+    }
+    return false;                                                         // sRGB 청크만 있거나 아무것도 없으면 sRGB
+  }
+  if (str4(p, 0) === "RIFF" && str4(p, 8) === "WEBP") {                 // WebP — ICCP 청크 (명세상 VP8X 바로 뒤)
+    for (let o = 12, c = 0; o + 8 <= N && c < MAXN; c++) {
+      const q = await at(o, 8);
+      if (q.length < 8) break;
+      const ty = str4(q, 0), len = (q[4] | (q[5] << 8) | (q[6] << 16) | (q[7] << 24)) >>> 0;
+      if (ty === "ICCP") return len <= MAXP && iccIsWide(await at(o + 8, len));
+      o += 8 + len + (len & 1);
+    }
+    return false;
+  }
+  if (str4(p, 4) === "ftyp") {                                           // AVIF·HEIF — 주 항목(pitm)에 ipma로 이어진 colr 상자
+    const colrWide = (q, qv, b) => {                                     // nclx 원색 번호 또는 ICC
+      const k = b.o + b.h, kind = str4(q, k);
+      if (kind === "nclx" && k + 6 <= b.end) { const pr = qv.getUint16(k + 4); return pr !== 1 && pr !== 2; }
+      if (kind === "prof" || kind === "rICC") return iccIsWide(q.subarray(k + 4, b.end));
+      return false;
+    };
+    let meta = null;                                                      // 맨 위 상자 머리를 따라가 meta를 찾는다 (mdat가 앞에 있어도)
+    for (let o = 0, c = 0; o + 8 <= N && c < MAXN; c++) {
+      const q = await at(o, 16);
+      if (q.length < 8) break;
+      let size = be32(q, 0), h = 8;
+      if (size === 1) { if (q.length < 16) break; size = be32(q, 8) * 4294967296 + be32(q, 12); h = 16; }
+      else if (size === 0) size = N - o;
+      if (size < h) break;
+      if (str4(q, 4) === "meta") { if (size <= MAXP) { const mb = await at(o, size); meta = mb.slice(); } break; }
+      o += size;
+    }
+    if (meta) {
+      const mv = new DataView(meta.buffer), prim = heifPrimaryProps(meta, mv, meta.length);
+      if (prim) return prim.filter((b) => b.type === "colr").some((b) => colrWide(meta, mv, b));
+    }
+    for (let o = 4; o + 12 <= n; o++) {                                  // 구조를 못 읽으면 예전처럼 머리에서 처음 나오는 colr
+      if (p[o] !== 0x63 || str4(p, o) !== "colr") continue;
+      return colrWide(p, dv, { o: o - 4, h: 8, end: Math.min(n, o - 4 + dv.getUint32(o - 4)) });
+    }
+  }
+  return false;
+}
+/* ISO BMFF 상자 목록 [start, end) — 크기 1(64비트)·0(끝까지)을 다룬다. 잘린 상자는 읽을 수 있는 데까지 */
+function bmffBoxes(p, dv, start, end) {
+  const out = [];
+  for (let o = start; o + 8 <= end;) {
+    let size = dv.getUint32(o), h = 8;
+    if (size === 1) { if (o + 16 > end) break; size = Number(dv.getBigUint64(o + 8)); h = 16; }
+    else if (size === 0) size = end - o;
+    if (size < h) break;
+    out.push({ type: str4(p, o + 4), o, h, end: Math.min(end, o + size) });
+    o += size;
+  }
+  return out;
+}
+/* HEIF·AVIF 주 항목의 속성 상자들 — meta 안 pitm(주 항목 번호), iprp 안 ipco(속성, 1부터 번호)·ipma(항목 ↔ 속성 번호).
+   썸네일·보조 영상의 colr가 앞에 있어도 주 영상의 것을 고른다. 구조가 없거나 깨졌으면 null */
+function heifPrimaryProps(p, dv, n) {
+  try {
+    const meta = bmffBoxes(p, dv, 0, n).find((b) => b.type === "meta");
+    if (!meta) return null;
+    const kids = bmffBoxes(p, dv, meta.o + meta.h + 4, meta.end);       // meta는 FullBox (버전·플래그 4바이트)
+    const pitm = kids.find((b) => b.type === "pitm"), iprp = kids.find((b) => b.type === "iprp");
+    if (!pitm || !iprp) return null;
+    const pv = p[pitm.o + pitm.h], primary = pv === 0 ? dv.getUint16(pitm.o + pitm.h + 4) : dv.getUint32(pitm.o + pitm.h + 4);
+    const ip = bmffBoxes(p, dv, iprp.o + iprp.h, iprp.end), ipco = ip.find((b) => b.type === "ipco");
+    if (!ipco) return null;
+    const props = bmffBoxes(p, dv, ipco.o + ipco.h, ipco.end), out = [];
+    for (const ipma of ip.filter((b) => b.type === "ipma")) {
+      const v = p[ipma.o + ipma.h], big = p[ipma.o + ipma.h + 3] & 1;
+      let o = ipma.o + ipma.h + 4;
+      const cnt = dv.getUint32(o); o += 4;
+      for (let e = 0; e < cnt && o < ipma.end; e++) {
+        const id = v < 1 ? dv.getUint16(o) : dv.getUint32(o); o += v < 1 ? 2 : 4;
+        const na = p[o++];
+        for (let a = 0; a < na; a++) {
+          const idx = big ? dv.getUint16(o) & 0x7fff : p[o] & 0x7f; o += big ? 2 : 1;
+          if (id === primary && idx > 0 && props[idx - 1]) out.push(props[idx - 1]);
+        }
+      }
+    }
+    return out;
+  } catch (e) { return null; }
+}
+/* Display P3 ICC 프로필 (v4.3, 행렬 + 매개 곡선) — 원색은 P3 D65를 브래드퍼드로 D50에 맞춘 값, 곡선은 sRGB와 같다 */
+function displayP3Icc() {
+  const s15 = (v) => Math.round(v * 65536);
+  const tags = [];
+  const mluc = (txt) => { const b = new Uint8Array(28 + txt.length * 2), d = new DataView(b.buffer);
+    b.set([0x6d, 0x6c, 0x75, 0x63]); d.setUint32(8, 1); d.setUint32(12, 12); b.set([0x65, 0x6e, 0x55, 0x53], 16);
+    d.setUint32(20, txt.length * 2); d.setUint32(24, 28); for (let i = 0; i < txt.length; i++) d.setUint16(28 + i * 2, txt.charCodeAt(i)); return b; };
+  const xyzT = (v) => { const b = new Uint8Array(20), d = new DataView(b.buffer); b.set([0x58, 0x59, 0x5a, 0x20]); v.forEach((x, k) => d.setInt32(8 + 4 * k, s15(x))); return b; };
+  const sf32 = (m) => { const b = new Uint8Array(44), d = new DataView(b.buffer); b.set([0x73, 0x66, 0x33, 0x32]); m.forEach((x, k) => d.setInt32(8 + 4 * k, s15(x))); return b; };
+  const para = () => { const b = new Uint8Array(32), d = new DataView(b.buffer); b.set([0x70, 0x61, 0x72, 0x61]); d.setUint16(8, 3);
+    [2.4, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045].forEach((x, k) => d.setInt32(12 + 4 * k, s15(x))); return b; };
+  const trc = para();
+  tags.push(["desc", mluc("Display P3")], ["cprt", mluc("No copyright, use freely")], ["wtpt", xyzT([0.9642, 1, 0.8249])],
+            ["chad", sf32([1.047886, 0.022919, -0.050216, 0.029582, 0.990484, -0.017079, -0.009252, 0.015073, 0.751678])],
+            ["rXYZ", xyzT(DISPLAY_P3_D50[0])], ["gXYZ", xyzT(DISPLAY_P3_D50[1])], ["bXYZ", xyzT(DISPLAY_P3_D50[2])],
+            ["rTRC", trc], ["gTRC", trc], ["bTRC", trc]);
+  const head = 128 + 4 + tags.length * 12, offs = new Map(); let size = head;
+  for (const [, b] of tags) if (!offs.has(b)) { offs.set(b, size); size += (b.length + 3) & ~3; }
+  const out = new Uint8Array(size), d = new DataView(out.buffer);
+  d.setUint32(0, size); d.setUint32(8, 0x04300000);
+  out.set([0x6d, 0x6e, 0x74, 0x72, 0x52, 0x47, 0x42, 0x20, 0x58, 0x59, 0x5a, 0x20], 12);   // mntr · RGB · XYZ
+  [2026, 1, 1, 0, 0, 0].forEach((v, k) => d.setUint16(24 + 2 * k, v));
+  out.set([0x61, 0x63, 0x73, 0x70], 36);                                                   // acsp
+  d.setInt32(68, s15(0.9642)); d.setInt32(72, s15(1)); d.setInt32(76, s15(0.8249));
+  d.setUint32(128, tags.length);
+  tags.forEach(([sig, b], i) => { const o = 132 + i * 12; for (let k = 0; k < 4; k++) out[o + k] = sig.charCodeAt(k); d.setUint32(o + 4, offs.get(b)); d.setUint32(o + 8, b.length); });
+  for (const [b, o] of offs) out.set(b, o);
+  return out;
+}
+let P3_ICCP = null;                                         // PNG iCCP 청크 본문 (이름 \0 방식 0 zlib) — 처음 저장할 때 한 번 만든다
+async function p3IccpChunk() {
+  if (P3_ICCP) return P3_ICCP;
+  const z = new Uint8Array(await new Response(new Blob([displayP3Icc()]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+  const name = new TextEncoder().encode("Display P3"), b = new Uint8Array(name.length + 2 + z.length);
+  b.set(name, 0); b.set(z, name.length + 2);
+  return (P3_ICCP = b);
+}
 /* 상주 메모리 한계(MB). 캔버스 하나는 화소당 4바이트로 잡는다.
    기기가 알려주는 값이 있으면 그걸 쓰고, 없으면 보수적으로 잡는다. */
 const MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -4243,13 +4658,13 @@ const MEM_BUDGET = (function () {
 })();
 
 /* 이미지 한 장에 딸린 값들. st는 그중 '현재 장'의 거울이다. */
-const ITEM_KEYS = ["uid", "name", "srcCanvas", "srcW", "srcH", "hasAlpha", "boxes", "jgrid", "jq", "rm",
+const ITEM_KEYS = ["uid", "name", "srcCanvas", "srcW", "srcH", "hasAlpha", "cs", "boxes", "jgrid", "jq", "rm",
                    "result", "outW", "outH", "resultScale", "resultMode", "resultLin", "note"];
 
 const st = {
   items: [], idx: -1,
-  name: "", srcCanvas: null, srcW: 0, srcH: 0, hasAlpha: false, note: "", boxes: [], jgrid: null, jq: null, rm: null,
-  scale: 2, scaleAuto: false, mode: "area", kernel: "edi", linear: true, cons: 1, clamp: 1, crAmt: 0, dcAmt: 0, depth: 8, uid: 0,
+  name: "", srcCanvas: null, srcW: 0, srcH: 0, hasAlpha: false, cs: "srgb", note: "", boxes: [], jgrid: null, jq: null, rm: null,
+  scale: 2, scaleAuto: false, mode: "area", kernel: "edi", linear: true, cons: 1, clamp: 1, crAmt: 0, dcAmt: 0, depth: 8, dither8: true, texAmt: 0, uid: 0,
   staged: false, stageWay: "small2", stageMid: 1, wbAmt: 0, aaAmt: 0, dbAmt: 0,
   dnAmt: 0, dnRad: 3,
   rlIter: 3, rlSig: 0.6,
@@ -4411,7 +4826,7 @@ function scaleLabel(v) { return v + "×"; }
 function bindRange(id, key, fmt) {
   const el = $("#" + id), out = $("#" + id + "V");
   const upd = () => { st[key] = +el.value; out.textContent = fmt(+el.value); };
-  el.addEventListener("input", () => { upd(); markPreset(); if (key === "usRad") updateSizeNote(); });
+  el.addEventListener("input", () => { upd(); markPreset(); if (key === "usRad" || key === "texAmt") updateSizeNote(); });   // 타일 여백·배율 자동 예산이 바뀌는 값
   el.addEventListener("change", save);
   upd();
 }
@@ -4428,6 +4843,7 @@ bindRange("usAmt", "usAmt", (v) => v.toFixed(2));
 bindRange("usRad", "usRad", (v) => (v === 0 ? "자동" : v.toFixed(1) + " px"));
 bindRange("usThr", "usThr", (v) => v.toFixed(3));
 bindRange("usOvr", "usOvr", (v) => v.toFixed(2));
+bindRange("texAmt", "texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%"));
 
 $("#btnAuto").addEventListener("click", () => {
   if (!hasImg() || st.busy) return;
@@ -4437,24 +4853,40 @@ $("#btnAuto").addEventListener("click", () => {
   setTimeout(() => {                                        // 분석 전에 문구가 그려지도록
     try {
       const a = analyzeImage(st.srcCanvas, st.jq);
-      let scaleWhy = "";
-      if (st.scaleAuto) {                                   // 배율 자동: 렌더링이 보장되는 가장 큰 배율(최대 12×)
-        const g = pickAutoScale();
+      const stage0 = { staged: st.staged, stageWay: st.stageWay, stageMid: st.stageMid };   // 탐색값이 바꾸는 나눠 확대는 배율마다 처음 상태에서
+      const applyAt = () => {                               // 지금 배율에 맞춰 프리셋·측정 조정·크게 복원 탐색값을 적용한다
+        Object.assign(st, stage0);
+        const r = autoPick(a, st.scale), p = PRESETS.find((x) => x.id === r.id);
+        for (const [sk, k] of Object.entries(PKEYS)) st[k] = pv(p, sk);
+        Object.assign(st, r.o);                             // 실측 기반 미세 조정
+        const big = AUTO_BIG[r.cls], useBig = !!big && linOf(snapSettings()) >= big.minL && (!big.jpegOnly || !!st.jq);
+        if (useBig) { applyAutoBig(big.s); r.why.push(`크게 복원 탐색값(${big.ko}, ${big.minL}배 이상${big.jpegOnly ? ", JPEG 입력" : ""})`); }
+        return Object.assign(r, { p, useBig });
+      };
+      let scaleWhy = "", g = null, pick = null;
+      if (st.scaleAuto) {
+        // 배율 자동: 「자동」 설정을 적용했을 때 렌더링이 보장되는 가장 큰 배율. 설정(프리셋·탐색값·나눠 확대·질감이 쓰이는지)이
+        // 배율마다 달라 예산도 달라지므로, 큰 배율부터 그 배율의 설정을 실제로 적용해 보고 처음 보장되는 배율을 고른다
+        // (한 설정으로 고른 배율에 다시 적용하는 반복은 배율마다 싼 설정·비싼 설정이 갈리면 더 작은 배율에 머물 수 있다)
+        const s0 = st.scale;
+        for (const v of autoScaleOrder()) {
+          st.scale = v; pick = applyAt();
+          const r = renderBudget(v, st.mode);
+          if (r.ok) { g = Object.assign({ v, below: v < AUTO_SCALE_MIN }, r); break; }
+        }
+        if (!g) { st.scale = s0; pick = applyAt(); }
+        syncScaleChips();
+      } else pick = applyAt();
+      if (st.scaleAuto) {
         if (g) {
-          st.scale = g.v; syncScaleChips();
           TC_AUTO_CAP = Math.max(4e6, g.capPx); tcTrim();     // 보장 조건대로 캐시 상한을 낮춘다 (결과는 같고 다시 계산만 늘 수 있다)
           scaleWhy = (g.below ? "3× 이상은 렌더링이 보장되지 않아 " : "") + "배율 자동 " + (st.mode === "area" ? "넓이 " : "") + scaleLabel(g.v) + "(결과 " + (g.px / 1e6).toFixed(1) + " MP · 캐시 " +
                      Math.round(g.cacheMB) + " MB 포함 예상 최대 " + Math.round(g.fixedMB + g.cacheMB) + "/" + MEM_BUDGET + " MB)";
         }
         else scaleWhy = "배율 자동: 보장되는 배율이 없어 지금 배율 유지";
       }
-      const { id, o, why, cls } = autoPick(a, st.scale);
-      if (scaleWhy) why.unshift(scaleWhy);         // 배율은 그대로 — 1×면 보정 전용 프리셋 안에서 고른다
-      const p = PRESETS.find((x) => x.id === id);
-      for (const [sk, k] of Object.entries(PKEYS)) st[k] = pv(p, sk);
-      Object.assign(st, o);                                 // 실측 기반 미세 조정
-      const big = AUTO_BIG[cls], useBig = !!big && linOf(snapSettings()) >= big.minL;
-      if (useBig) { applyAutoBig(big.s); why.push(`크게 복원 탐색값(${big.ko}, ${big.minL}배 이상)`); }
+      const { why, cls, p, useBig } = pick;
+      if (scaleWhy) why.unshift(scaleWhy);         // 1×면 보정 전용 프리셋 안에서 고른다
       applyStateToControls();
       $("#preset").value = "";                              // 프리셋 그대로가 아니라 조정본이다
       $("#presetNote").textContent = "자동: " + why.join(" · ") + " → " + p.n + " 기준으로 조정 · 색 처리는 그대로";
@@ -4493,12 +4925,19 @@ $("#btnColorAuto").addEventListener("click", () => {
   }, 30);
 });
 
-$("#kernel").addEventListener("change", (e) => { st.kernel = e.target.value; markPreset(); updateSizeNote(); save(); });
-$("#staged").addEventListener("change", (e) => { st.staged = e.target.checked; updateSizeNote(); save(); });
+$("#kernel").addEventListener("change", (e) => { st.kernel = e.target.value; markPreset(); syncTexControl(); updateSizeNote(); save(); });
+/* 질감 되살리기는 최근접(원본 복제)·픽셀아트(팔레트 보존) 커널에서는 쓰지 않는다 — 슬라이더를 끄고 이유를 보인다 */
+function syncTexControl() {
+  const off = st.kernel === "nearest" || st.kernel === "pixelart", el = $("#texAmt");
+  el.disabled = off;
+  $("#texAmtV").textContent = off ? "이 커널에서는 쓰지 않음" : st.texAmt === 0 ? "끔" : Math.round(st.texAmt * 100) + "%";
+}
+$("#staged").addEventListener("change", (e) => { st.staged = e.target.checked; STAGE_SEQ++; updateSizeNote(); save(); });
 $("#stageWay").addEventListener("change", (e) => { st.stageWay = e.target.value; updateSizeNote(); save(); });
 $("#stageMid").addEventListener("input", (e) => { st.stageMid = +e.target.value; $("#stageMidV").textContent = Math.round(st.stageMid * 100) + "%"; save(); });
 $("#linear").addEventListener("change", (e) => { st.linear = e.target.checked; save(); });
-$("#depth16").addEventListener("change", (e) => { st.depth = e.target.checked ? 16 : 8; save(); });
+$("#depth16").addEventListener("change", (e) => { st.depth = e.target.checked ? 16 : 8; updateSizeNote(); save(); });   // 저장 중 압축 PNG 크기가 배율 자동 예산에 든다
+$("#dither8").addEventListener("change", (e) => { st.dither8 = e.target.checked; save(); });
 $("#btnDiff").addEventListener("click", (e) => {
   st.view.diff = !st.view.diff;
   e.currentTarget.setAttribute("aria-pressed", String(st.view.diff));
@@ -4512,6 +4951,7 @@ function applyStateToControls() {
   $("#linear").checked = st.linear;
   $("#cons").checked = !!st.cons;
   $("#depth16").checked = st.depth === 16;
+  $("#dither8").checked = !!st.dither8;
   $("#staged").checked = st.staged;
   $("#stageMid").value = st.stageMid; $("#stageMidV").textContent = Math.round(st.stageMid * 100) + "%";
   $("#clamp").checked = !!st.clamp;
@@ -4522,8 +4962,10 @@ function applyStateToControls() {
    ["dbAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%")],
    ["dnAmt", (v) => (v === 0 ? "끔" : v.toFixed(2))], ["dnRad", (v) => v + " px"],
    ["rlIter", (v) => String(v)], ["rlSig", (v) => v.toFixed(2)], ["usAmt", (v) => v.toFixed(2)],
-   ["usRad", (v) => (v === 0 ? "자동" : v.toFixed(1) + " px")], ["usThr", (v) => v.toFixed(3)], ["usOvr", (v) => v.toFixed(2)]]
+   ["usRad", (v) => (v === 0 ? "자동" : v.toFixed(1) + " px")], ["usThr", (v) => v.toFixed(3)], ["usOvr", (v) => v.toFixed(2)],
+   ["texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%")]]
     .forEach(([k, f]) => { $("#" + k).value = st[k]; $("#" + k + "V").textContent = f(st[k]); });
+  syncTexControl();
   syncScaleChips();
   markPreset();
   updateSizeNote();
@@ -4549,7 +4991,7 @@ function save() {
   try {
     localStorage.setItem("upscaler.v1", JSON.stringify({
       scale: st.scale, scaleAuto: !!st.scaleAuto, mode: st.mode, kernel: st.kernel, linear: st.linear, staged: st.staged, stageWay: st.stageWay, stageMid: st.stageMid, wbAmt: st.wbAmt, aaAmt: st.aaAmt, dbAmt: st.dbAmt, cons: st.cons, clamp: st.clamp, crAmt: st.crAmt, dcAmt: st.dcAmt, depth: st.depth, dnAmt: st.dnAmt, dnRad: st.dnRad, rlIter: st.rlIter, rlSig: st.rlSig,
-      usAmt: st.usAmt, usRad: st.usRad, usThr: st.usThr, usOvr: st.usOvr, colorSep: 1
+      usAmt: st.usAmt, usRad: st.usRad, usThr: st.usThr, usOvr: st.usOvr, dither8: !!st.dither8, texAmt: st.texAmt, colorSep: 1
     }));
   } catch (e) {}
 }
@@ -4570,18 +5012,38 @@ function outDims() {
   const L = linScale();
   return [Math.max(1, Math.round(st.srcW * L)), Math.max(1, Math.round(st.srcH * L))];
 }
+/* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 1.1·1.25·1.5·2·3·4× 확대해 잰 값(research/results/png_ratio.json).
+   2× 이상은 프리셋만·「자동」 탐색값(AUTO_BIG) 두 갈래 중 큰 쪽, 2× 미만은 탐색값을 쓰지 않으므로 프리셋만.
+   결과 배율 L을 사이에 둔 두 측정 배율 중 큰 값(4× 이상은 4× 값, 1.1× 미만은 날 크기로 본다 — 넓이 배율 1.25×도 가로·세로 1.12×라 측정 안).
+   질감 되살리기를 켜면 고운 결이 압축을 덜 되게 한다(세기 25~100% 중 큰 쪽). 다른 그림을 위해 10% 여유, 날 크기보다 조금 크게까지 */
+var PNG_RATIO = {                                             // 배율 → { 비트 수: [질감 끔, 질감 켬] } (소수 셋째 자리 올림)
+  1.1: { 8: [0.712, 0.767], 16: [0.922, 0.929] },
+  1.25: { 8: [0.679, 0.766], 16: [0.911, 0.927] },
+  1.5: { 8: [0.650, 0.760], 16: [0.894, 0.925] },
+  2: { 8: [0.688, 0.790], 16: [0.875, 0.933] },
+  3: { 8: [0.615, 0.751], 16: [0.839, 0.931] },
+  4: { 8: [0.562, 0.731], 16: [0.817, 0.934] },
+};
+function pngRatioMax(depth, tex, L) {
+  const ks = Object.keys(PNG_RATIO).map(Number).sort((a, b) => a - b);
+  if (L < ks[0] - 1e-9) return 1.02;
+  const lo = ks.filter((k) => k <= L + 1e-9).pop(), hi = ks.find((k) => k >= L - 1e-9) || lo;
+  return Math.min(1.02, Math.max(PNG_RATIO[lo][depth][tex ? 1 : 0], PNG_RATIO[hi][depth][tex ? 1 : 0]) * 1.1);
+}
 /* ── 배율 v에서 렌더링이 보장되는가 — 처리 전 과정의 최대 메모리를 넉넉히 잡아 메모리 예산의 80% 안이고
    결과가 저장 상한 안일 때만 보장으로 본다. (브라우저는 남은 메모리를 정확히 알려주지 않으므로 이 앱의 예산 기준) */
-function renderBudget(v, mode) {
+function renderBudget(v, mode, over) {                       // over: 아직 적용하지 않은 설정(「자동」이 고르는 중인 나눠 확대 등)
   const L = mode === "area" ? Math.sqrt(v) : v, sw = st.srcW, sh = st.srcH, n0 = sw * sh;
   const W = Math.max(1, Math.round(sw * L)), H = Math.max(1, Math.round(sh * L)), px = W * H;
   const [LD, LP] = outLimits();
   if (W > LD || H > LD || px > LP) return { ok: false, why: "저장 상한", px, peakMB: Infinity };
   const lim = MEM_BUDGET * 1048576 * 0.8, nc = st.hasAlpha ? 4 : 3;
-  const steps = stepsOf(Object.assign(snapSettings(), { scale: v, mode }), L);
+  const set = Object.assign(snapSettings(), over || {}, { scale: v, mode }), steps = stepsOf(set, L);
   let other = 0;                                              // 같이 열려 있는 원본 캔버스들
   stashActive();
   for (const it of st.items) other += it.srcW * it.srcH * 4;
+  // 캐시에 남은 다른 준비된 원본(최근 두 개) — 새로 준비하는 동안은 둘 다, 그 뒤에는 가장 최근 하나가 남는다
+  const curKey = st.items[st.idx].uid + "|" + preKeyOf(set), srcAll = srcOtherBytes(curKey, true), srcLast = srcOtherBytes(curKey, false);
   // 원본 준비: 바이트 4 + 채널 평면 12 + 안내 평면 4 + 노이즈 정리·디컨볼루션 임시 12 = 원본 화소당 32 B
   // 나눠 확대: 중간 해상도마다 채널 평면·재표본·선명화 임시(중간 화소당 32 B) + 원본 기준 평면
   let prep = n0 * 32, s2 = 1;
@@ -4589,17 +5051,21 @@ function renderBudget(v, mode) {
   // 렌더·저장(캐시 제외): 남는 평면 + 워커마다 타일 작업 평면 + 저장 띠(8비트 타일 한 줄, 16비트 128행, 압축 포함)
   const To = PORT.tileSizeFor(steps[steps.length - 1]), nLast = Math.round(n0 * s2 * s2);
   const keep = nLast * (nc + 1) * 4 + (steps.length > 1 ? n0 * nc * 4 : 0);
-  const work = Math.max(1, POOL.size || 1) * (To + 64) * (To + 64) * 48;
+  // 질감 되살리기: 결과 에너지 창만큼 타일 여백이 늘고(texMargin), 밝기·저역·잡음 평면 등 화소당 약 16 B를 더 쓴다(여유 두어 24 B)
+  const texM = set.texAmt > 0 && set.kernel !== "nearest" && set.kernel !== "pixelart" && L > 1 ? ENGINE.texMargin(L) : 0;
+  const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * texM) * (To + 64 + 2 * texM) * (48 + (texM ? 24 : 0));
   const band = W * Math.max(To * 4, 128 * 8) * 1.5;
-  let fixed = other + keep + work + band;
+  // 저장: 압축된 PNG 조각이 끝날 때까지 메모리에 모인다 — 데이터 47장에서 잰 최대 압축률(질감·비트 수별)에 여유 10%
+  const png = STREAM_OK ? px * nc * (st.depth === 16 ? 2 : 1) * pngRatioMax(st.depth === 16 ? 16 : 8, texM > 0, L) : 0;
+  let fixed = other + srcLast + keep + work + band + png;
   if (!STREAM_OK) fixed += px * 4;                            // 스트리밍이 없으면 결과 전체 캔버스로 저장
   // 캐시는 줄여도 결과가 같다(버린 타일은 다시 계산) — 남는 몫만 주되, 저장에 필요한 타일 두 줄(최소 4 MP)은 있어야 한다
   const cacheNeed = Math.min(px, Math.max(4e6, 2 * W * To)) * 4;
   const cacheRoom = lim - fixed;
-  const ok = other + prep <= lim && cacheRoom >= cacheNeed;
+  const ok = other + srcAll + prep <= lim && cacheRoom >= cacheNeed;
   const capPx = Math.max(0, Math.floor(Math.min(cacheRoom, (MEM_BUDGET * 1048576 * 0.6)) / 4));
-  const peakMB = (Math.max(other + prep, fixed + Math.min(px * 4, Math.max(cacheNeed, cacheRoom))) ) / 1048576;
-  return { ok, why: ok ? "" : (other + prep > lim ? "원본 준비 메모리" : "캐시 여유 부족"), px, W, H, capPx,
+  const peakMB = (Math.max(other + srcAll + prep, fixed + Math.min(px * 4, Math.max(cacheNeed, cacheRoom))) ) / 1048576;
+  return { ok, why: ok ? "" : (other + srcAll + prep > lim ? "원본 준비 메모리" : "캐시 여유 부족"), px, W, H, capPx,
            peakMB: Math.min(peakMB, MEM_BUDGET * 0.8 + (ok ? 0 : 1e9)), fixedMB: fixed / 1048576, cacheMB: Math.min(px * 4, capPx * 4) / 1048576 };
 }
 /* 배율 자동 — 3~8× 안에서 렌더링이 보장되는 가장 큰 배율 (크게 복원 탐색값을 검증한 범위가 2·4·8배).
@@ -4607,15 +5073,18 @@ function renderBudget(v, mode) {
 const AUTO_SCALE_MIN = 3, AUTO_SCALE_MAX = 8;
 function pickAutoScale() {
   if (!hasImg()) return null;
-  const all = SCALES.map((x) => x.v).filter((x) => x > 1).sort((a, b) => b - a);
-  for (const v of all.filter((x) => x >= AUTO_SCALE_MIN && x <= AUTO_SCALE_MAX)) { const r = renderBudget(v, st.mode); if (r.ok) return Object.assign({ v }, r); }
-  for (const v of all.filter((x) => x < AUTO_SCALE_MIN)) { const r = renderBudget(v, st.mode); if (r.ok) return Object.assign({ v, below: true }, r); }
+  for (const v of autoScaleOrder()) { const r = renderBudget(v, st.mode); if (r.ok) return Object.assign({ v, below: v < AUTO_SCALE_MIN }, r); }
   return null;
+}
+function autoScaleOrder() {                                   // 3~8× 큰 것부터, 그다음 3× 미만 큰 것부터
+  const all = SCALES.map((x) => x.v).filter((x) => x > 1).sort((a, b) => b - a);
+  return all.filter((x) => x >= AUTO_SCALE_MIN && x <= AUTO_SCALE_MAX).concat(all.filter((x) => x < AUTO_SCALE_MIN));
 }
 /* ── 나눠 확대 측정 — 지금 사진의 가운데를 목표 배율만큼 빛의 면적 평균으로 줄였다가(카메라처럼),
    지금 설정 그대로 한 번에 / 나눠서 되살려 원본과 비교한다(PSNR). 원본 준비부터 최종 단계까지 실제 처리와 같은 경로다.
    결과는 사진·설정별로 기억하고, 체크 상태는 열쇠에서 뺀다(켬·끔 모두 같은 측정으로 판정). */
 const STAGE_MEAS = new Map(), STAGE_PENDING = new Set();
+var STAGE_SEQ = 0;                                            // 「단계로 나눠 확대」를 사용자·「자동」이 정할 때마다 늘린다 — 늦게 끝난 첫 측정이 덮어쓰지 않게
 var AUTO_LAST = null;                                      // 마지막 「자동」의 배율 — 그 뒤 배율을 바꾸면 다시 누르라고 알린다
                                                            // (var: 시작할 때 이 줄보다 먼저 updateSizeNote가 불려도 되게)
 let AUTO_SEQ = 0;                                           // 「자동」 요청 번호 — 늦게 끝난 앞 요청이 새 그림에 적용되지 않게
@@ -4736,7 +5205,7 @@ function updateStageLed() {
 async function initStageCheck() {
   if (!hasImg()) return;
   stashActive();
-  const it = st.items[st.idx], set = snapSettings(), L = linOf(set);
+  const it = st.items[st.idx], set = snapSettings(), L = linOf(set), seq = STAGE_SEQ;
   if (!(L > 1)) { st.staged = false; applyStateToControls(); save(); return; }
   const key = stageKey(it, set, L);
   let m = STAGE_MEAS.get(key);
@@ -4746,7 +5215,9 @@ async function initStageCheck() {
     catch (e) { console.warn("나눠 확대 초기값 측정 실패", e); return; }
     finally { STAGE_PENDING.delete(key); }
   }
-  if (m.na || st.busy || st.items[st.idx] !== it) { updateStageLed(); return; }
+  // 재는 동안 사용자가 체크를 바꿨거나 「자동」이 정했거나, 배율·커널 등이 바뀌어 다른 조건이 됐으면 그 값을 그대로 둔다
+  const now = snapSettings();
+  if (m.na || st.busy || st.items[st.idx] !== it || STAGE_SEQ !== seq || stageKey(it, now, linOf(now)) !== key) { updateStageLed(); return; }
   st.staged = m.split > m.single + 0.005;
   applyStateToControls(); updateSizeNote(); save();
 }
@@ -4755,20 +5226,24 @@ async function initStageCheck() {
    방향 평활·윤곽 재작도·디컨볼루션/노이즈 제거/JPEG 복원 배수(자동 추정값에 곱함)·나눠 확대, 1.52×10¹²가지 공간을
    무작위 1,500 → 상위 150 재평가 → 출발점 4곳 좌표 하강(모든 단계 시험, 수렴까지) → 슬라이더 끝까지 범위 확장 순으로 약 5.5만 회 평가.
    따로 떼어 둔 검증 이미지(2·4·8배 현실 열화, 4배 깨끗한 입력, 4배 큰 영상)에서 평균이 오르고 3장 중 2장 이상 나아진
-   종류·배율에만 쓴다(minL 이상). 일러스트(조건에 따라 엇갈림)·로고(깨끗한 입력 검증 보류)는 쓰지 않는다. */
+   종류·배율에만 쓴다(minL 이상). 일러스트(조건에 따라 엇갈림)는 쓰지 않는다.
+   jpegOnly: 깨끗한 입력 검증을 JPEG 정보 없이 다시 한 결과(v1.1.0, research/results/val_v3.json — JPEG 입력은 양자화 표·격자까지 넘겨 실제 경로로) 그 조건에서만 채택 규칙을
+   통과하지 못한 종류 — JPEG 파일일 때만 쓴다. 로고(깨끗한 입력 +0.18 dB·1/3장·방향 오차 +14.8%, JPEG 조건은 모두 통과),
+   만화(깨끗한 입력 −0.15 dB, 예전 검증은 입력을 JPEG 85로 넘겨 +0.44 dB로 잘못 나왔다). */
 const AUTO_BIG = {
   photo: { minL: 2, ko: "사진", s: {"kernel": "edi", "cons": 0, "clamp": 1, "usAmt": 1.25, "usRad": 0.9, "usThr": 0.012, "usOvr": 2, "aaAmt": 0.6, "crAmt": 0.1, "rlMul": 0.75, "rsMul": 0.8, "dnMul": 0, "dcMul": 0, "stage": ["large2", 1]} },
   line: { minL: 2, ko: "선화", s: {"kernel": "edi", "cons": 1, "clamp": 0, "usAmt": 0.65, "usRad": 8, "usThr": 0.048, "usOvr": 0.8, "aaAmt": 0.8, "crAmt": 0.2, "rlMul": 5, "rsMul": 0.9, "dnMul": 0, "dcMul": 0, "stage": ["small2", 1]} },
   ui: { minL: 2, ko: "UI", s: {"kernel": "lanczos3", "cons": 1, "clamp": 1, "usAmt": 2, "usRad": 2.5, "usThr": 0.048, "usOvr": 2, "aaAmt": 0.1, "crAmt": 0.7, "rlMul": 0.5, "rsMul": 1, "dnMul": 0.75, "dcMul": 0, "stage": ["off"]} },
-  manga: { minL: 2, ko: "만화", s: {"kernel": "lanczos3", "cons": 1, "clamp": 0, "usAmt": 2, "usRad": 0, "usThr": 0.004, "usOvr": 2, "aaAmt": 0.3, "crAmt": 0, "rlMul": 8, "rsMul": 1, "dnMul": 0, "dcMul": 0.25, "stage": ["off"]} },
+  manga: { minL: 2, jpegOnly: true, ko: "만화", s: {"kernel": "lanczos3", "cons": 1, "clamp": 0, "usAmt": 2, "usRad": 0, "usThr": 0.004, "usOvr": 2, "aaAmt": 0.3, "crAmt": 0, "rlMul": 8, "rsMul": 1, "dnMul": 0, "dcMul": 0.25, "stage": ["off"]} },
   paint: { minL: 2, ko: "회화", s: {"kernel": "catrom", "cons": 0, "clamp": 1, "usAmt": 2, "usRad": 2, "usThr": 0.016, "usOvr": 2, "aaAmt": 0.5, "crAmt": 0.3, "rlMul": 0, "rsMul": 1.1, "dnMul": 0.5, "dcMul": 0, "stage": ["balR", 1]} },
   doc: { minL: 4, ko: "문서", s: {"kernel": "catrom", "cons": 0, "clamp": 1, "usAmt": 2, "usRad": 8, "usThr": 0.048, "usOvr": 0.5, "aaAmt": 0.6, "crAmt": 0.4, "rlMul": 5, "rsMul": 0.9, "dnMul": 0.5, "dcMul": 0, "stage": ["three", 1]} },
+  logo: { minL: 2, jpegOnly: true, ko: "로고", s: {"kernel": "lanczos3", "cons": 1, "clamp": 0, "usAmt": 1.6, "usRad": 5, "usThr": 0.002, "usOvr": 1.75, "aaAmt": 0.4, "crAmt": 0.9, "rlMul": 0.25, "rsMul": 0.8, "dnMul": 2, "dcMul": 2, "stage": ["off"]} },
 };
 function applyAutoBig(n) {                                   // 검증한 구성 그대로 — 배수는 자동 추정값(st)에 곱한다
   for (const k of ["kernel", "cons", "clamp", "usAmt", "usRad", "usThr", "usOvr", "aaAmt", "crAmt"]) st[k] = n[k];
   st.rlIter = Math.min(24, Math.round(st.rlIter * n.rlMul)); st.rlSig = Math.min(1.6, st.rlSig * n.rsMul);
   st.dnAmt = Math.min(0.2, st.dnAmt * n.dnMul); st.dcAmt = Math.min(1, st.dcAmt * n.dcMul);
-  st.staged = n.stage[0] !== "off";
+  st.staged = n.stage[0] !== "off"; STAGE_SEQ++;
   if (st.staged) { st.stageWay = n.stage[0]; st.stageMid = n.stage[1]; }
 }
 
@@ -4836,6 +5311,7 @@ async function autoStage(alive = () => true) {
     let best = null; const seen = new Map();
     for (const k of Object.keys(STAGE_WAYS)) {
       if (!STAGE_WAYS[k].ok(L)) continue;                        // 이 배율에서 성립하지 않는 방식은 재지 않는다
+      if (st.scaleAuto && !renderBudget(st.scale, st.mode, { staged: true, stageWay: k }).ok) continue;   // 배율 자동: 보장을 깨는 방식은 고르지 않는다
       const set = Object.assign({}, base, { staged: true, stageWay: k }), sig = stepsOf(set, L).join();
       const v = seen.has(sig) ? seen.get(sig) : await stageProbeRun(it, probe, set);   // 이 배율에서 계획이 같으면 결과도 같다
       seen.set(sig, v);
@@ -4843,8 +5319,9 @@ async function autoStage(alive = () => true) {
       if (!best || v > best.v) best = { key: k, v };              // 방식끼리는 가장 높은 것
     }
     if (!alive()) return null;                                    // 그사이 다른 그림·다른 자동 요청이면 적용하지 않는다
-    st.staged = best.v > single + 0.005;                          // 한 번에 확대보다 나을 때만 켠다
+    st.staged = !!best && best.v > single + 0.005; STAGE_SEQ++;   // 한 번에 확대보다 나을 때만 켠다
     if (st.staged) st.stageWay = best.key;
+    if (st.scaleAuto) { const r = renderBudget(st.scale, st.mode); if (r.ok) { TC_AUTO_CAP = Math.max(4e6, r.capPx); tcTrim(); } }   // 바뀐 계획에 맞춘 캐시 상한
   } finally { QUIET--; }
   applyStateToControls(); updateSizeNote(); save();
   return "나눠 확대 " + (st.staged ? "켬 · " + STAGE_WAYS[st.stageWay].n + " (" + planLabel(stepsOf(snapSettings(), L)) + ")" : "끔") + " — 이 사진에서 측정";
@@ -5036,25 +5513,37 @@ async function decodeImage(file) {
   const deadline = performance.now() + decodeBudget(file);  // 세 경로가 나눠 쓰는 전체 예산
   const left = () => Math.max(5000, deadline - performance.now());
 
-  if (typeof createImageBitmap === "function") {
+  // 넓은 색역이면 P3 캔버스로 읽는다 (지원할 때만). 디코딩 전에 판별한다 — createImageBitmap의 기본 색 변환은
+  // 브라우저마다 달라 sRGB로 잘라 낼 수 있으므로, 넓은 색역 파일은 프로필을 지니는 <img> 경로를 먼저 쓴다
+  let wide = false;
+  if (P3_OK) { try { wide = await sniffWideGamut(file); } catch (e) { wide = false; } }
+  if (wide) {                                               // <img> 두 경로(Blob URL → Data URL) 모두 프로필을 지닌다
+    try { src = await withTimeout(imgFromBlobUrl(file), left(), "시간 초과"); }
+    catch (e) { tried.push("blob URL " + errMsg(e)); }
+    if (!src) {
+      try { src = await withTimeout(imgFromDataUrl(file), left(), "시간 초과"); }
+      catch (e) { tried.push("data URL " + errMsg(e)); }
+    }
+  }
+  if (!src && typeof createImageBitmap === "function") {
     try {
       bmp = await withTimeout(createImageBitmap(file, { imageOrientation: "from-image" }),
                               left(), "시간 초과");
       src = bmp;
     } catch (e) { bmp = null; tried.push("ImageBitmap " + errMsg(e)); }
-  } else tried.push("ImageBitmap 미지원");
+  } else if (!src) tried.push("ImageBitmap 미지원");
 
-  if (!src) {
+  if (!src && !wide) {
     try { src = await withTimeout(imgFromBlobUrl(file), left(), "시간 초과"); }
     catch (e) { tried.push("blob URL " + errMsg(e)); }
   }
-  if (!src) {                                              // blob:이 막힌 환경을 위한 최후 경로
+  if (!src && !wide) {                                     // blob:이 막힌 환경을 위한 최후 경로 (넓은 색역은 위에서 이미 해 봤다)
     try { src = await withTimeout(imgFromDataUrl(file), left(), "시간 초과"); }
     catch (e) { tried.push("data URL " + errMsg(e)); }
   }
   if (!src) throw new Error(tag + " — " + tried.join(" / "));
 
-  const it = itemFromSource(src, file.name, tag, bmp);
+  const it = itemFromSource(src, file.name, tag, bmp, wide ? "p3" : "srgb");
   if (bmp) bmp.close();
   if (/jpe?g/i.test(file.type) || /\.jpe?g$/i.test(file.name || "")) {
     try {
@@ -5066,9 +5555,22 @@ async function decodeImage(file) {
   return it;
 }
 
+/* 원본에 보이는(알파 > 0) 화소가 하나라도 있는가 — 작은 캔버스(최대 1024²)에 원본을 조각조각 그려 읽는다 */
+function sourceHasVisible(src, w, h) {
+  const B = 1024, pc = document.createElement("canvas"); pc.width = Math.min(w, B); pc.height = Math.min(h, B);
+  const px = pc.getContext("2d", { willReadFrequently: true });
+  for (let y0 = 0; y0 < h; y0 += B) for (let x0 = 0; x0 < w; x0 += B) {
+    const bw = Math.min(B, w - x0), bh = Math.min(B, h - y0);
+    px.clearRect(0, 0, pc.width, pc.height); px.drawImage(src, x0, y0, bw, bh, 0, 0, bw, bh);
+    const d = px.getImageData(0, 0, bw, bh).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) return true;
+  }
+  return false;
+}
 /* 디코딩이 끝난 이미지 원소(ImageBitmap/HTMLImageElement)를 항목으로 만든다.
    파일 선택기 없이 들어온 이미지(붙여넣기)도 같은 경로를 탄다. */
-function itemFromSource(src, name, tag, bmp) {
+function itemFromSource(src, name, tag, bmp, cs) {
+  cs = cs === "p3" ? "p3" : "srgb";
   tag = tag || (name || "이미지");
   const w = src.width || src.naturalWidth, h = src.height || src.naturalHeight;
   const bail = (msg) => { if (bmp) bmp.close(); throw new Error(tag + " — " + msg); };
@@ -5078,25 +5580,29 @@ function itemFromSource(src, name, tag, bmp) {
   if (w * h > MAX_PIXELS) bail("이 브라우저의 캔버스 한계 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP를 넘는 원본입니다");
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
-  const cx = c.getContext("2d", { willReadFrequently: true });
+  const cx = c.getContext("2d", cs === "p3" ? { willReadFrequently: true, colorSpace: "display-p3" } : { willReadFrequently: true });
   if (!cx) bail("캔버스를 만들 수 없습니다 (메모리 부족)");
   try { cx.drawImage(src, 0, 0); } catch (e) { bail("캔버스에 그리지 못했습니다: " + errMsg(e)); }
-  // 한계를 넘으면 예외 없이 빈 캔버스를 주는 브라우저가 있다 — 모서리를 찍어 확인하고 한계를 학습한다
-  try {
-    const probe = document.createElement("canvas"); probe.width = 1; probe.height = 1;
-    const px2 = probe.getContext("2d"); px2.drawImage(src, w - 1, h - 1, 1, 1, 0, 0, 1, 1);
-    const want = px2.getImageData(0, 0, 1, 1).data[3], got = cx.getImageData(w - 1, h - 1, 1, 1).data[3];
-    if (want !== 0 && got === 0) { MAX_PIXELS = Math.floor(w * h * 0.85); bail("캔버스 한계를 넘었습니다. 상한을 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP로 낮췄습니다"); }
-  } catch (e) { if (/한계/.test(errMsg(e))) throw e; }
-
-  let hasAlpha = false;                                    // 실패하면 불투명으로 보고 진행
+  let hasAlpha = false, anyVis = true;                    // 읽기에 실패하면 불투명으로 보고 진행
   try {
     const d = cx.getImageData(0, 0, w, h).data;
-    for (let i = 3; i < d.length; i += 4) if (d[i] !== 255) { hasAlpha = true; break; }
+    anyVis = false;
+    for (let i = 3; i < d.length; i += 4) {
+      if (d[i] !== 255) hasAlpha = true;
+      if (d[i] !== 0) anyVis = true;
+      if (hasAlpha && anyVis) break;
+    }
   } catch (e) { hasAlpha = false; }
+  // 한계를 넘으면 예외 없이 빈 캔버스를 주는 브라우저가 있다. 캔버스가 통째로 투명하면 원본을 조각으로 직접 읽어
+  // 보이는 화소가 하나라도 있는지 본다(있으면 빈 캔버스 — 한계를 학습). 원래 완전히 투명한 그림은 그대로 연다.
+  if (!anyVis) {
+    let vis = false;
+    try { vis = sourceHasVisible(src, w, h); } catch (e) { vis = false; }
+    if (vis) { MAX_PIXELS = Math.floor(w * h * 0.85); bail("캔버스 한계를 넘었습니다. 상한을 " + (MAX_PIXELS / 1e6).toFixed(1) + " MP로 낮췄습니다"); }
+  }
 
   const it = {
-    name: name || "붙여넣은 이미지", srcCanvas: c, srcW: w, srcH: h, hasAlpha,
+    name: name || "붙여넣은 이미지", srcCanvas: c, srcW: w, srcH: h, hasAlpha, cs,
     uid: ++UID_SEQ,                                        // 캐시 열쇠 — 같은 이름의 파일도 구분한다
     boxes: detectSubjects(c),                              // 피사체 영역 (정규화 좌표)
     jgrid: null, jq: null, rm: null,                       // JPEG 격자·품질, 잡음 모형(지연 계산)
@@ -5106,7 +5612,7 @@ function itemFromSource(src, name, tag, bmp) {
   return it;
 }
 function baseInfo(it) {
-  return it.name + " · " + it.srcW + " × " + it.srcH + " px" + (it.hasAlpha ? " · 알파 있음" : "") +
+  return it.name + " · " + it.srcW + " × " + it.srcH + " px" + (it.hasAlpha ? " · 알파 있음" : "") + (it.cs === "p3" ? " · Display P3" : "") +
     (it.jq ? " · JPEG 품질 약 " + it.jq : "");
 }
 
@@ -5247,7 +5753,7 @@ async function run() {
     const desc = {
       key: it.uid + ":" + hashStr(JSON.stringify(set)), set, W: dw, H: dh, To,
       nTx: Math.ceil(dw / To), nTy: Math.ceil(dh / To), cfg, one: cfg.sx === 1 && cfg.sy === 1,
-      stats: { sum: 0, max: 0, n: 0, exact: 0 }, seen: new Set(), wbGain: src.wbGain, full: true,
+      stats: { sum: 0, max: 0, n: 0, exact: 0 }, seen: new Set(), wbGain: src.wbGain, full: true, cs: it.cs || "srgb",
     };
     tcDropPrefix(desc.key + "#");
     const all = [];
@@ -5544,7 +6050,7 @@ function detectSubjects(canvas) {
 /* =====================================================================
    11. 뷰어 — 확대/이동 + 원본 분할 비교
    ===================================================================== */
-const view = $("#view"), vctx = view.getContext("2d");
+const view = $("#view"), vctx = view.getContext("2d", P3_OK ? { colorSpace: "display-p3" } : undefined);   // P3 결과를 P3 화면에서 그대로
 
 function curDims() {
   return st.result ? [st.outW, st.outH] : [st.srcW, st.srcH];
