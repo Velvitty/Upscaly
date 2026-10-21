@@ -1,3 +1,5 @@
+<p align="right"><b>한국어</b> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a></p>
+
 # 🔍 확대기 (Upscaly)
 
 무손실을 지향하는 이미지 확대 도구입니다. 파일 하나(`upscaler.html`)로 동작하고, 모든 계산을 브라우저 안에서 합니다.
