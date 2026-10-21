@@ -47,11 +47,11 @@ When you enlarge a small image, it usually turns blurry, gets jagged staircases,
 ### How to use
 
 1. Open `upscaler.html` in a modern browser.
-2. Press **Open image**, drag an image onto the screen, or paste one. You can open up to 20 images at once, in JPEG, PNG, WebP or AVIF.
-3. Choose the **scale**. There is a width/height-based scale (1–12×) and a pixel-count (area) based scale; choosing 「Auto」 picks the largest scale (3–8×) this device can process to the end.
+2. Press **Open image** (이미지 열기), drag an image onto the screen, or paste one. You can open up to 20 images at once, in JPEG, PNG, WebP or AVIF.
+3. Choose the **scale** (배율). There is a width/height-based scale (1–12×) and a pixel-count (area) based scale; choosing 「Auto」 picks the largest scale (3–8×) this device can process to the end.
 4. Press **「Auto: (recommended, suggested)」(자동: (권장, 추천))**. It measures the kind and condition of the image, fills in all the settings below, and writes a short note on what it based them on.
-5. Press **Run upscale**. With **Compare original** on, the left half of the screen shows the original enlarged by the browser and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (F key), **1:1** and **Compare original** (C key) buttons.
-6. **Save PNG** saves the current image, and **Save all** saves all processed images at once.
+5. Press **Run upscale** (확대 실행). With **Compare original** (원본 비교) on, the left half of the screen shows the original enlarged by the browser and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (맞춤, F key), **1:1** and **Compare original** (C key) buttons.
+6. **Save PNG** (PNG 저장) saves the current image, and **Save all** (모두 저장) saves all processed images at once.
 
 ### Choosing settings yourself
 
@@ -59,15 +59,15 @@ The panels on the right side of the screen are laid out in processing order.
 
 | Panel | What it does |
 |---|---|
-| Scale | How many times to enlarge. 1× only cleans up without enlarging |
-| Preset · Auto | 33 presets or 「Auto」 |
-| Reconstruction kernel | How to fill in new pixels (DCCI · pixel art · Lanczos · Catmull–Rom · Mitchell · nearest), staged upscaling, ringing suppression, source consistency |
-| Noise · artifact cleanup | Removes noise and JPEG artifacts before enlarging |
-| Sharpness restoration | Undoes blur from shooting or scanning before enlarging |
-| Staircase removal | Averages only along the edge direction to remove staircases, contour redrawing, JPEG deblocking |
-| Edge enhancement | Unsharp mask with halo suppression |
-| Texture revival | Adds fine grain that was not in the original. Off by default, 20–30% recommended for photos and paintings |
-| Color processing | White balance (a separate feature that presets and Auto do not touch), linear-light computation, 8-bit dithering, 16-bit saving |
+| Scale (배율) | How many times to enlarge. 1× only cleans up without enlarging |
+| Preset · Auto (프리셋 · 자동) | 33 presets or 「Auto」 |
+| Reconstruction kernel (재구성 커널) | How to fill in new pixels (DCCI · pixel art · Lanczos · Catmull–Rom · Mitchell · nearest), staged upscaling, ringing suppression, source consistency |
+| Noise · artifact cleanup (노이즈·잡티 정리) | Removes noise and JPEG artifacts before enlarging |
+| Sharpness restoration (선명도 복원) | Undoes blur from shooting or scanning before enlarging |
+| Staircase removal (계단 제거) | Averages only along the edge direction to remove staircases, contour redrawing, JPEG deblocking |
+| Edge enhancement (윤곽 강조) | Unsharp mask with halo suppression |
+| Texture revival (질감 되살리기) | Adds fine grain that was not in the original. Off by default, 20–30% recommended for photos and paintings |
+| Color processing (색 처리) | White balance (a separate feature that presets and Auto do not touch), linear-light computation, 8-bit dithering, 16-bit saving |
 
 Checkboxes and sliders work exactly as you set them. For example, 「Upscale in stages」(단계로 나눠 확대), when on, splits the upscale even if measurements say it is worse. Instead, the indicator next to it tells you the result measured on the current image. Right after an image is opened, the initial value of this checkbox is decided by measuring the image; if you change the checkbox or press 「Auto」 before that measurement finishes, the late-finishing measurement does not touch your choice.
 

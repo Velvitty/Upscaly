@@ -47,11 +47,11 @@ Quand on agrandit une petite image, elle devient en général floue, crénelée,
 ### Mode d'emploi
 
 1. Ouvrez `upscaler.html` dans un navigateur récent.
-2. Cliquez sur **Ouvrir une image**, glissez-déposez une image sur l'écran ou collez-la. Vous pouvez ouvrir jusqu'à 20 images à la fois, en JPEG, PNG, WebP ou AVIF.
-3. Choisissez le **facteur**. Il peut être défini sur la largeur et la hauteur (1 à 12×) ou sur le nombre de pixels (surface) ; si vous choisissez 「Auto」, le plus grand facteur (3 à 8×) que cet appareil peut traiter jusqu'au bout est sélectionné.
+2. Cliquez sur **Ouvrir une image** (이미지 열기), glissez-déposez une image sur l'écran ou collez-la. Vous pouvez ouvrir jusqu'à 20 images à la fois, en JPEG, PNG, WebP ou AVIF.
+3. Choisissez le **facteur** (배율). Il peut être défini sur la largeur et la hauteur (1 à 12×) ou sur le nombre de pixels (surface) ; si vous choisissez 「Auto」, le plus grand facteur (3 à 8×) que cet appareil peut traiter jusqu'au bout est sélectionné.
 4. Cliquez sur **「Auto : (conseillé, recommandé)」(자동: (권장, 추천))**. Le type et l'état de l'image sont mesurés, tous les réglages ci-dessous sont remplis, et une courte note indique sur quoi reposent ces choix.
-5. Cliquez sur **Lancer l'agrandissement**. Si **Comparer à l'original** est activé, la moitié gauche de l'écran montre l'original agrandi par le navigateur, la moitié droite le résultat. Faites glisser pour vous déplacer, utilisez la molette pour zoomer, ainsi que les boutons **Ajuster** (touche F), **1:1** et **Comparer à l'original** (touche C).
-6. **Enregistrer en PNG** enregistre l'image actuelle, **Tout enregistrer** enregistre d'un coup toutes les images traitées.
+5. Cliquez sur **Lancer l'agrandissement** (확대 실행). Si **Comparer à l'original** (원본 비교) est activé, la moitié gauche de l'écran montre l'original agrandi par le navigateur, la moitié droite le résultat. Faites glisser pour vous déplacer, utilisez la molette pour zoomer, ainsi que les boutons **Ajuster** (맞춤, touche F), **1:1** et **Comparer à l'original** (touche C).
+6. **Enregistrer en PNG** (PNG 저장) enregistre l'image actuelle, **Tout enregistrer** (모두 저장) enregistre d'un coup toutes les images traitées.
 
 ### Choisir les réglages soi-même
 
@@ -59,15 +59,15 @@ Les panneaux à droite de l'écran sont disposés dans l'ordre du traitement.
 
 | Panneau | Rôle |
 |---|---|
-| Facteur | De combien agrandir. 1× ne fait qu'un nettoyage, sans agrandissement |
-| Préréglage · Auto | 33 préréglages ou 「Auto」 |
-| Noyau de reconstruction | Comment remplir les nouveaux pixels (DCCI, pixel art, Lanczos, Catmull-Rom, Mitchell, plus proche voisin), agrandissement par étapes, blocage du ringing, cohérence avec l'original |
-| Nettoyage du bruit et des artefacts | Retire le bruit et les traces JPEG avant l'agrandissement |
-| Restauration de la netteté | Annule avant l'agrandissement le flou introduit à la prise de vue ou à la numérisation |
-| Suppression du crénelage | Supprime les marches en moyennant uniquement le long des contours, retracé des contours, atténuation des blocs JPEG |
-| Renforcement des contours | Masque flou (unsharp mask) avec suppression des halos |
-| Restauration de texture | Ajoute un grain fin absent de l'original. Désactivée par défaut, 20 à 30 % conseillés pour les photos et peintures |
-| Traitement des couleurs | Balance des blancs (fonction séparée, que les préréglages et 「Auto」 ne touchent pas), calcul en lumière linéaire, tramage 8 bits, enregistrement 16 bits |
+| Facteur (배율) | De combien agrandir. 1× ne fait qu'un nettoyage, sans agrandissement |
+| Préréglage · Auto (프리셋 · 자동) | 33 préréglages ou 「Auto」 |
+| Noyau de reconstruction (재구성 커널) | Comment remplir les nouveaux pixels (DCCI, pixel art, Lanczos, Catmull-Rom, Mitchell, plus proche voisin), agrandissement par étapes, blocage du ringing, cohérence avec l'original |
+| Nettoyage du bruit et des artefacts (노이즈·잡티 정리) | Retire le bruit et les traces JPEG avant l'agrandissement |
+| Restauration de la netteté (선명도 복원) | Annule avant l'agrandissement le flou introduit à la prise de vue ou à la numérisation |
+| Suppression du crénelage (계단 제거) | Supprime les marches en moyennant uniquement le long des contours, retracé des contours, atténuation des blocs JPEG |
+| Renforcement des contours (윤곽 강조) | Masque flou (unsharp mask) avec suppression des halos |
+| Restauration de texture (질감 되살리기) | Ajoute un grain fin absent de l'original. Désactivée par défaut, 20 à 30 % conseillés pour les photos et peintures |
+| Traitement des couleurs (색 처리) | Balance des blancs (fonction séparée, que les préréglages et 「Auto」 ne touchent pas), calcul en lumière linéaire, tramage 8 bits, enregistrement 16 bits |
 
 Les cases à cocher et curseurs font exactement ce que vous choisissez. Par exemple, 「Agrandir par étapes」(단계로 나눠 확대), une fois activé, découpe l'agrandissement même si c'est moins bon selon la mesure. En contrepartie, le voyant à côté indique le résultat mesuré sur l'image actuelle. Juste après l'ouverture d'une image, la valeur initiale de cette case est déterminée en mesurant l'image ; si vous modifiez la case ou cliquez sur 「Auto」 avant la fin de cette mesure, la mesure terminée en retard ne touche pas à votre choix.
 

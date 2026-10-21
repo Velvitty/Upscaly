@@ -59,15 +59,15 @@ Los paneles de la derecha de la pantalla están dispuestos en el orden de proces
 
 | Panel | Qué hace |
 |---|---|
-| Factor | Cuántas veces ampliar. 1× solo limpia, sin ampliar |
-| Preajuste · automático | 33 preajustes o 「Automático」 |
-| Núcleo de reconstrucción | Cómo rellenar los píxeles nuevos (DCCI, pixel art, Lanczos, Catmull-Rom, Mitchell, vecino más próximo), ampliación por etapas, bloqueo del ringing, consistencia con el original |
-| Limpieza de ruido y manchas | Elimina el ruido y los artefactos JPEG antes de ampliar |
-| Recuperación de nitidez | Deshace antes de ampliar el desenfoque producido al fotografiar o escanear |
-| Eliminación de escalones | Elimina los escalones promediando solo en la dirección del contorno, redibujado de contornos, suavizado de bloques JPEG |
-| Realce de contornos | Máscara de enfoque con supresión de halos |
-| Restauración de textura | Añade una textura fina que no estaba en el original. Desactivada por defecto; se recomienda 20–30 % para fotos y pintura |
-| Procesamiento del color | Balance de blancos (función aparte que ni los preajustes ni el modo automático tocan), cálculo en luz lineal, tramado de 8 bits, guardado en 16 bits |
+| Factor (배율) | Cuántas veces ampliar. 1× solo limpia, sin ampliar |
+| Preajuste · automático (프리셋 · 자동) | 33 preajustes o 「Automático」 |
+| Núcleo de reconstrucción (재구성 커널) | Cómo rellenar los píxeles nuevos (DCCI, pixel art, Lanczos, Catmull-Rom, Mitchell, vecino más próximo), ampliación por etapas, bloqueo del ringing, consistencia con el original |
+| Limpieza de ruido y manchas (노이즈·잡티 정리) | Elimina el ruido y los artefactos JPEG antes de ampliar |
+| Recuperación de nitidez (선명도 복원) | Deshace antes de ampliar el desenfoque producido al fotografiar o escanear |
+| Eliminación de escalones (계단 제거) | Elimina los escalones promediando solo en la dirección del contorno, redibujado de contornos, suavizado de bloques JPEG |
+| Realce de contornos (윤곽 강조) | Máscara de enfoque con supresión de halos |
+| Restauración de textura (질감 되살리기) | Añade una textura fina que no estaba en el original. Desactivada por defecto; se recomienda 20–30 % para fotos y pintura |
+| Procesamiento del color (색 처리) | Balance de blancos (función aparte que ni los preajustes ni el modo automático tocan), cálculo en luz lineal, tramado de 8 bits, guardado en 16 bits |
 
 Las casillas y los controles deslizantes funcionan exactamente como se eligen. Por ejemplo, 「Ampliar por etapas」(단계로 나눠 확대), si se activa, divide la ampliación aunque según la medición el resultado sea peor. A cambio, el indicador que hay al lado informa del resultado medido sobre la imagen actual. Justo después de abrir una imagen, el valor inicial de esta casilla se decide midiendo la imagen; si antes de que termine esa medición cambia la casilla o pulsa 「Automático」, la medición que termine tarde no toca esa elección.
 
