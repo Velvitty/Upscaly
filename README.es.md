@@ -909,6 +909,7 @@ Al principio, 「Percepción」 añadía también un grano fino (restauración d
 ### v1.2.2 — El factor 「Automático」 cambia al instante
 
 - Al pulsar 「Automático」 en la fila del factor, el factor pasa ahora de inmediato al mayor garantizado con los ajustes actuales (antes solo cambiaba al pulsar el botón 「Automático」). El botón 「Automático」 sigue buscando de nuevo con los ajustes propios de cada factor.
+- En 「Objetivo」, el marcador detrás de 「Precisión」 y 「Percepción」 se desliza ahora hacia la opción pulsada como un resorte (se pasa una vez y se detiene en unos 0,5 s; con movimiento reducido se mueve al instante). Al pulsar otro factor se desactiva 「Automático」.
 
 ### v1.2.1 — Nombre y versión visibles
 

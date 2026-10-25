@@ -909,6 +909,7 @@ At first, 「Perceptual」 also added fine grain (texture revival, 25% at streng
 ### v1.2.2 — Auto scale moves at once
 
 - Pressing 「Auto」 in the scale row now moves the scale right away to the largest one guaranteed with the current settings (before, it moved only when the 「Auto」 button was pressed). The 「Auto」 button still searches again with each scale's own settings.
+- In 「Goal」, the marker behind 「Accuracy」 and 「Perceptual」 now slides to the pressed option like a spring (it overshoots once and settles in about 0.5 s; with reduced motion it moves at once). Pressing another scale releases 「Auto」.
 
 ### v1.2.1 — Name and version display
 

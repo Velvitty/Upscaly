@@ -136,6 +136,15 @@ main{flex:1; min-height:0; display:grid; grid-template-columns:326px 1fr}
 #scales{grid-template-columns:repeat(3,1fr)}
 .chips.wide{grid-template-columns:repeat(2,1fr)}
 .chips.wide .chip{font-size:12.5px; padding:7px 4px}
+/* 분할 버튼(목표): 눌린 칸 뒤의 표지가 용수철처럼 미끄러져 옮겨 간다 (placeSegThumb) */
+.seg{position:relative; isolation:isolate; gap:0; padding:2px; background:var(--sunk); border:1px solid var(--line); border-radius:6px}
+.seg .chip, .seg .chip[aria-pressed="true"]{background:transparent; border-color:transparent; transition:color .15s}
+.seg .chip[aria-pressed="true"]{color:var(--accent-ink)}
+.seg .chip:not([aria-pressed="true"]):hover{color:var(--text); background:color-mix(in srgb, var(--faint) 12%, transparent)}
+.seg .thumb{
+  position:absolute; left:0; top:2px; bottom:2px; width:0; border-radius:5px; background:var(--accent);
+  z-index:-1; pointer-events:none; transform-origin:0 50%; will-change:transform;
+}
 
 .prow{display:flex; gap:6px}
 .prow select{flex:1; min-width:0}
@@ -309,7 +318,8 @@ dialog .detail.warn{color:var(--warn)}
 
       <div class="grp">
         <h2>목표</h2>
-        <div class="chips wide" id="lookSel">
+        <div class="chips wide seg" id="lookSel">
+          <span class="thumb" aria-hidden="true"></span>
           <button class="chip" data-look="acc">정확도</button>
           <button class="chip" data-look="pop">체감</button>
         </div>
@@ -4962,9 +4972,39 @@ bindRange("usThr", "usThr", (v) => v.toFixed(3));
 bindRange("usOvr", "usOvr", (v) => v.toFixed(2));
 bindRange("texAmt", "texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%"));
 bindRange("popAmt", "popAmt", (v) => Math.round(v * 100) + "%");
+/* 분할 버튼의 표지 — 감쇠 용수철(감쇠비 0.45: 한 번 크게 넘쳤다 돌아옴, 약 0.5초). 끝 칸을 넘치면 벽에 눌린 듯 줄었다가 편다.
+   움직임 줄이기 설정이면 바로 옮긴다. 시작할 때 부르므로 상태는 var(TDZ 방지) */
+var SEG_SPRING = { k: 380, c: 17.5 }, SEG_ANIM = new WeakMap();
+function placeSegThumb(wrap, btn, animate) {
+  const kids = [...wrap.children], th = kids.find((c) => /\bthumb\b/.test(c.className)), cells = kids.filter((c) => /\bchip\b/.test(c.className));
+  if (!th || !btn || !btn.offsetWidth) return;
+  const w = btn.offsetWidth, target = btn.offsetLeft, lo = cells[0].offsetLeft, hi = cells[cells.length - 1].offsetLeft;
+  let s = SEG_ANIM.get(wrap);
+  if (!s) { s = { x: target, v: 0, raf: 0 }; SEG_ANIM.set(wrap, s); }
+  cancelAnimationFrame(s.raf);
+  th.style.width = w + "px";
+  const draw = () => {
+    let left = s.x, k = 1;
+    if (s.x > hi) { k = Math.max(0.7, 1 - (s.x - hi) / w); left = hi + w * (1 - k); }   // 오른쪽 벽: 오른쪽 끝을 붙인 채 줄어듦
+    else if (s.x < lo) { k = Math.max(0.7, 1 - (lo - s.x) / w); left = lo; }          // 왼쪽 벽
+    else { k = 1 + Math.min(0.08, Math.abs(s.v) / 6000); left = s.x - w * (k - 1) / 2; }   // 빠를수록 살짝 늘어남
+    th.style.transform = "translateX(" + left.toFixed(2) + "px) scaleX(" + k.toFixed(4) + ")";
+  };
+  if (!animate || matchMedia("(prefers-reduced-motion: reduce)").matches) { s.x = target; s.v = 0; draw(); return; }
+  let t0 = performance.now();
+  const step = (t) => {
+    const dt = Math.min(0.034, (t - t0) / 1000) / 4; t0 = t;
+    for (let i = 0; i < 4; i++) { s.v += (-SEG_SPRING.k * (s.x - target) - SEG_SPRING.c * s.v) * dt; s.x += s.v * dt; }   // 반암시 오일러 4단계
+    if (Math.abs(s.x - target) < 0.25 && Math.abs(s.v) < 4) { s.x = target; s.v = 0; draw(); return; }
+    draw(); s.raf = requestAnimationFrame(step);
+  };
+  s.raf = requestAnimationFrame(step);
+}
 /* 목표: 「정확도」(원본에 가장 가깝게) · 「체감」(눈에 선명하게). 프리셋·「자동」은 바꾸지 않는 사용자 선택이다 */
-function syncLook() {
-  [...$("#lookSel").children].forEach((c) => c.setAttribute("aria-pressed", c.dataset.look === st.look ? "true" : "false"));
+function syncLook(animate) {
+  const sel = $("#lookSel"), cells = [...sel.children].filter((c) => c.dataset && c.dataset.look);
+  cells.forEach((c) => c.setAttribute("aria-pressed", c.dataset.look === st.look ? "true" : "false"));
+  placeSegThumb(sel, cells.find((c) => c.dataset.look === st.look), !!animate);
   const off = st.kernel === "nearest" || st.kernel === "pixelart";
   $("#popRow").hidden = st.look !== "pop";
   $("#popAmt").disabled = off;
@@ -4972,8 +5012,9 @@ function syncLook() {
 }
 $("#lookSel").addEventListener("click", (e) => {
   const b = e.target.closest("[data-look]"); if (!b) return;
-  st.look = b.dataset.look; syncLook(); updateSizeNote(); save();
+  st.look = b.dataset.look; syncLook(true); updateSizeNote(); save();
 });
+if (window.ResizeObserver) new ResizeObserver(() => syncLook(false)).observe($("#lookSel"));   // 폭이 바뀌면(창 크기·패널 펼침) 표지를 다시 맞춘다
 
 $("#btnAuto").addEventListener("click", () => {
   if (!hasImg() || st.busy) return;
