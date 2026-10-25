@@ -5,7 +5,7 @@
 An image upscaler that aims to be lossless. It runs as a single file (`upscaler.html`) and does all of its computation inside the browser.
 There is nothing to install and nothing to upload. Your images never leave your device.
 
-Current version **v1.1.1** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
+Current version **v1.2.0** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
 
 **Contents**
 
@@ -43,13 +43,14 @@ When you enlarge a small image, it usually turns blurry, gets jagged staircases,
 - **Phone photo colors kept intact.** Display P3 photos from iPhones and similar devices are read as P3 and saved as P3, so vivid reds and greens do not turn dull.
 - **Texture revival (optional).** You can put fine grain back onto skin and fabric that became waxy-smooth from heavy enlargement. It is off by default.
 - **Transparent images stay clean too.** Colors do not bleed at semi-transparent edges.
+- **Two goals: accuracy and perception.** The default 「Accuracy」(정확도) upscales as close to the original as possible. 「Perceptual」(체감) makes edges steeper and brings out buried contrast, so the result looks crisper to the eye. No white fringes (halos) appear.
 
 ### How to use
 
 1. Open `upscaler.html` in a modern browser.
 2. Press **Open image** (이미지 열기), drag an image onto the screen, or paste one. You can open up to 20 images at once, in JPEG, PNG, WebP or AVIF.
 3. Choose the **scale** (배율). There is a width/height-based scale (1–12×) and a pixel-count (area) based scale; choosing 「Auto」 picks the largest scale (3–8×) this device can process to the end.
-4. Press **「Auto: (recommended, suggested)」(자동: (권장, 추천))**. It measures the kind and condition of the image, fills in all the settings below, and writes a short note on what it based them on.
+4. Press **「Auto: (recommended, suggested)」(자동: (권장, 추천))**. It measures the kind and condition of the image, fills in all the settings below, and writes a short note on what it based them on. If looking crisp matters more than staying faithful to the original, choose 「Perceptual」 under **Goal** (목표).
 5. Press **Run upscale** (확대 실행). With **Compare original** (원본 비교) on, the left half of the screen shows the original enlarged by the browser and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (맞춤, F key), **1:1** and **Compare original** (C key) buttons.
 6. **Save PNG** (PNG 저장) saves the current image, and **Save all** (모두 저장) saves all processed images at once.
 
@@ -61,6 +62,7 @@ The panels on the right side of the screen are laid out in processing order.
 |---|---|
 | Scale (배율) | How many times to enlarge. 1× only cleans up without enlarging |
 | Preset · Auto (프리셋 · 자동) | 33 presets or 「Auto」 |
+| Goal (목표) | 「Accuracy」 (closest to the original, default) or 「Perceptual」 (raises edge steepness and local contrast to look crisper, strength 25–150%). Presets and 「Auto」 do not change it |
 | Reconstruction kernel (재구성 커널) | How to fill in new pixels (DCCI · pixel art · Lanczos · Catmull–Rom · Mitchell · nearest), staged upscaling, ringing suppression, source consistency |
 | Noise · artifact cleanup (노이즈·잡티 정리) | Removes noise and JPEG artifacts before enlarging |
 | Sharpness restoration (선명도 복원) | Undoes blur from shooting or scanning before enlarging |
@@ -131,6 +133,10 @@ Recent phone photos are often captured in the Display P3 gamut, which is wider t
 
 Settings that suit photos ruin line art, and settings that suit line art ruin photos. Source consistency is good for photos, but in line art where two colors split cleanly it restores the original's staircase as the correct answer. So 「Auto」 first identifies the kind of image (9-class classifier), starts from the preset suited to that kind, and adjusts details with values measured on that image. For large enlargements it uses values found by searching a space of 1.52 trillion settings ([9.4](#94-large-scale-restoration-search)).
 
+### 2.9 Accuracy and perceived sharpness are different goals
+
+The result closest to the original (the one with the highest PSNR) is not the one that looks sharpest. Upscaling blunts even the edges the source resolution can hold (edge slope 0.81× the ground truth) and weakens contrast at the scale of a few source pixels (0.94×). The eye reads both as sharpness. So there are two goals. 「Accuracy」 is the restoration as before; 「Perceptual」 brings these two back to the ground-truth level on top of it. It creates no new extrema, so no white fringes appear, and it does not draw in texture the source never had. In exchange, the numbers against the original drop slightly ([4.21](#421-perceived-sharpness), [9.10](#910-perceived-sharpness)).
+
 ---
 
 ## 3. How it works
@@ -182,8 +188,9 @@ The result is computed in tiles (512–1024px depending on scale, a multiple of 
 5. **Unsharp.** Halos are suppressed with a knee limiter proportional to local amplitude.
 6. **Directional smoothing.** Averaging only along the tangent direction found from the original's structure tensor.
 7. **Contour redrawing.** Contours one pixel wide are redrawn by signed distance.
-8. **Texture revival.** Only when on, fine texture missing from the result is added in proportion to the texture strength measured on the original. With staged upscaling it is measured on the original, not on the intermediate image. It is not used with the nearest kernel, which copies the original as is, or the pixel-art kernel, which preserves the palette, and the slider is turned off too.
-9. **Un-premultiplication and encoding.** Converted to 8 bits for the screen and 8 · 16 bits for saving. For 8 bits, with dithering on (default), fine noise determined by coordinates is mixed in just before rounding. The screen and 8-bit saving use the same tiles, so what you see is what is saved.
+8. **Perceived sharpness.** Only when the goal is 「Perceptual」, raises edge slope and local contrast in the luminance. It never exceeds the surrounding brightness range ([4.21](#421-perceived-sharpness)).
+9. **Texture revival.** Only when on, fine texture missing from the result is added in proportion to the texture strength measured on the original. With staged upscaling it is measured on the original, not on the intermediate image. It is not used with the nearest kernel, which copies the original as is, or the pixel-art kernel, which preserves the palette, and the slider is turned off too.
+10. **Un-premultiplication and encoding.** Converted to 8 bits for the screen and 8 · 16 bits for saving. For 8 bits, with dithering on (default), fine noise determined by coordinates is mixed in just before rounding. The screen and 8-bit saving use the same tiles, so what you see is what is saved.
 
 The worker pool starts cores − 1 workers (at most 8), and if they do not respond within 5 seconds, the same engine computes on the main thread. The engine (`ENGINE_FACTORY`) is a bundle of pure computation functions, so the same code is also loaded as a Blob URL worker.
 
@@ -452,20 +459,20 @@ For scale $`L`$, original pixel count $`n_0`$ and result pixel count $`N`$, the 
 ```math
 \begin{aligned}
 M_{\mathrm{prep}} &= \max\big(32\,n_0,\ \ 4 c\, n_0 + 32\, n_0 s_k^2\big) && \text{source preparation, staged upscaling intermediate stages} \\
-M_{\mathrm{fixed}} &= M_{\mathrm{other}} + M_{\mathrm{src}}^{1} + M_{\mathrm{keep}} + n_w (T + 64 + 2t)^2 (48 + 24[t > 0]) + 1.5\,W \max(4T, 1024) + 1.1\,\rho\, c\, b\, N && \text{other originals · prepared originals, remaining planes, worker tiles, save bands, compressed PNG} \\
+M_{\mathrm{fixed}} &= M_{\mathrm{other}} + M_{\mathrm{src}}^{1} + M_{\mathrm{keep}} + n_w (T + 64 + 2t + 2p)^2 (48 + 24[t > 0] + 32[p > 0]) + 1.5\,W \max(4T, 1024) + 1.1\,\rho\, c\, b\, N && \text{other originals · prepared originals, remaining planes, worker tiles, save bands, compressed PNG} \\
 \text{guaranteed} &\iff M_{\mathrm{other}} + M_{\mathrm{src}}^{2} + M_{\mathrm{prep}} \le 0.8B \ \wedge\ 0.8B - M_{\mathrm{fixed}} \ge 4 \min\big(N, \max(4 \times 10^6, 2WT)\big)
 \end{aligned}
 ```
 
-$`c`$ is the number of channels, $`s_k`$ the intermediate scale of staged upscaling, $`n_w`$ the number of workers, $`T`$ the tile size, $`t`$ the result margin of texture revival (0 when off), $`W`$ the result width, and $`B`$ the memory budget. $`M_{\mathrm{src}}^{2}`$ is all the other prepared originals left in the cache (both remain while a new one is being prepared), and $`M_{\mathrm{src}}^{1}`$ is the most recent one of them (only one remains once the new one is inserted). $`b`$ is bytes per channel (1 for 8 bits, 2 for 16 bits), and $`\rho`$ is the maximum compression ratio of the saved PNG. It was measured with the app's encoder by upscaling the 47 images of `data/big` at 1.1 · 1.25 · 1.5 · 2 · 3 · 4×. At 2× and above it is the larger of the case using only presets and the case also using 「Auto」's large-scale restoration search values (`AUTO_BIG`); below 2× search values are not used, so presets only (`research/budget/png_ratio.js`, `research/results/png_ratio.json`). The larger value of the two measured scales bracketing the result scale is used (the 4× value for 4× and above). An area scale of 1.25× is also 1.12× in width and height, so it is within the measured range, and below 1.1× it is counted at uncompressed size.
+$`c`$ is the number of channels, $`s_k`$ the intermediate scale of staged upscaling, $`n_w`$ the number of workers, $`T`$ the tile size, $`t`$ the result margin of texture revival (0 when off), $`W`$ the result width, and $`B`$ the memory budget. $`M_{\mathrm{src}}^{2}`$ is all the other prepared originals left in the cache (both remain while a new one is being prepared), and $`M_{\mathrm{src}}^{1}`$ is the most recent one of them (only one remains once the new one is inserted). $`b`$ is bytes per channel (1 for 8 bits, 2 for 16 bits), and $`\rho`$ is the maximum compression ratio of the saved PNG. It was measured with the app's encoder by upscaling the 47 images of `data/big` at 1.1 · 1.25 · 1.5 · 2 · 3 · 4×. At 2× and above it is the larger of the case using only presets and the case also using 「Auto」's large-scale restoration search values (`AUTO_BIG`); below 2× search values are not used, so presets only (`research/budget/png_ratio.js`, `research/results/png_ratio.json`). The larger value of the two measured scales bracketing the result scale is used (the 4× value for 4× and above). An area scale of 1.25× is also 1.12× in width and height, so it is within the measured range, and below 1.1× it is counted at uncompressed size. $`p`$ is the result margin of 「Perceptual」 (the two blurs and the neighborhood minimum/maximum; 0 for 「Accuracy」). The compression ratio was also measured with 「Perceptual」 (strength up to 150%, texture off and on), and the larger value of the two goals is used (`research/results/png_ratio_pop.json`).
 
 | Scale | 8-bit, texture off | 8-bit, texture on | 16-bit, texture off | 16-bit, texture on |
 |---|---|---|---|---|
-| 1.1× | 0.712 | 0.767 | 0.922 | 0.929 |
-| 1.25× | 0.679 | 0.766 | 0.911 | 0.927 |
-| 1.5× | 0.650 | 0.760 | 0.894 | 0.925 |
-| 2× | 0.688 | 0.790 | 0.875 | 0.933 |
-| 3× | 0.615 | 0.751 | 0.839 | 0.931 |
+| 1.1× | 0.721 | 0.767 | 0.928 | 0.933 |
+| 1.25× | 0.686 | 0.766 | 0.913 | 0.928 |
+| 1.5× | 0.650 | 0.760 | 0.898 | 0.926 |
+| 2× | 0.688 | 0.790 | 0.876 | 0.933 |
+| 3× | 0.615 | 0.751 | 0.842 | 0.931 |
 | 4× and above | 0.562 | 0.731 | 0.817 | 0.934 |
 
 8-bit values are with dither on, and texture on is the larger of 25% and 100%. The last term is the cache of two tile rows (at least 4 megapixels) needed for saving. The memory budget $`B`$ is 15% of `navigator.deviceMemory` (400–1500 MB); if unavailable, 50% of the JS heap limit (at most 1500 MB); and if that is also unavailable, 600 MB. On mobile it is 12% (at most 400 MB, 180 MB if unavailable).
@@ -531,6 +538,25 @@ E_{\mathrm{dir}} = \frac{\sum_p m_p\, \arccos\!\big(|\hat{\mathbf g}^{U}_p \cdot
 ```
 
 $`E_{\mathrm{dir}}`$ is the edge direction error. At strong edges of the original (Sobel magnitude 80 or more, a step of about 20 levels), the angle by which the gradient directions of the result and the original disagree is averaged, weighted by edge strength. Staircases push gradient directions toward the axes and increase it. SSIM uses the definition of Wang et al. (2004).
+
+### 4.21 Perceived sharpness
+
+In 「Perceptual」 mode, two bands are added to the result luminance $`Y`$ ($`\sqrt{\ell}`$ in linear light, $`\ell`$ for gamma values; $`\ell`$ is the luminance of the channels clipped to 0–cap). $`L`$ is the scale, $`G_\sigma`$ a Gaussian (three-box approximation), and $`a`$ the perceptual strength.
+
+```math
+d_1 = Y - G_{0.5L}Y,\qquad d_2 = G_{0.5L}Y - G_{2L}Y,\qquad
+\tilde d = d\,\frac{d^2}{d^2+\tau^2}\quad(\tau = 0.004)
+```
+
+```math
+\Delta = a\Big(k_1\,\tilde d_1 + k_2\,\frac{\tilde d_2}{1+|\tilde d_2|/c_2}\Big),\qquad
+Y' = Y + \Delta\,\frac{h}{h+|\Delta|},\qquad
+h = \begin{cases}\max_{\mathcal N}Y - Y & \Delta>0\\ Y-\min_{\mathcal N}Y & \Delta\le 0\end{cases}
+```
+
+$`d_1`$ is the edge slope near the source Nyquist frequency, $`d_2`$ the local contrast at the scale of 1–4 source pixels. $`\tilde d`$ is a threshold of the same form as the unsharp mask, so small amplitudes such as noise and JPEG traces are hardly raised. Local contrast is raised less as its amplitude grows ($`c_2 = 0.05`$), leaving already clear contrast as it is and bringing out buried contrast. $`\mathcal N`$ is a square neighborhood of radius $`\mathrm{round}(0.75L)`$ (inside the image only), and $`h`$ the room left to the neighborhood minimum or maximum. $`\Delta\,h/(h+|\Delta|)`$ only approaches that room smoothly and never crosses it, so no new extrema (halos) appear, and since values do not stick to the bound, surfaces do not clump (posterize). A first version clipped exactly to the neighborhood range; surfaces clumped and looked like an oil painting, so it was changed. The new luminance is applied as a ratio $`s = Y'/Y`$ ($`s^2`$ in linear light) multiplied equally into the three premultiplied color channels, so hue, gray and alpha are kept; when brightening, the ratio is reduced so the largest channel stays under the cap (the same handling as texture revival).
+
+$`k_1 = 0.5`$ and $`k_2 = 1.5`$ were chosen on the exploration images. The 16 combinations $`k_1 \in \{0.5, 1, 2, 3\}`$ × $`k_2 \in \{0, 0.5, 1, 1.5\}`$ were measured on 22 images × 3 conditions (4× clean, 4× degraded, 8× degraded; 66 cases), comparing the median log error $`|\ln A| + |\ln C|`$ of edge slope $`A`$ and local contrast $`C`$ against the ground truth. $`A`$ is the ratio of slopes measured at ground-truth edges (top 10% of slope) after blurring both with $`\sigma = 0.5L`$; $`C`$ is the RMS ratio of the $`G_{0.5L}-G_{2L}`$ band. All 16 had a smaller error than 「Accuracy」 (0.418), from 0.343 to 0.410; among them the one adding the least halo and flat-area noise was chosen (error 0.357, halo +0.20 levels, flat-area noise ×1.14, SSIM +0.004). The results are in `research/results/pop_grid.json`.
 
 ---
 
@@ -681,7 +707,7 @@ The remaining bottlenecks are DCCI interpolation (per channel), consistency corr
 
 The invariants are measured with 8-bit dithering on (default). Apart from the staged-upscaling alpha item, they are the same as v1.0.0. Other tests:
 
-| Test | Contents | v1.1.1 |
+| Test | Contents | v1.2.0 |
 |---|---|---|
 | `e2e_presets.js` | Processing 8 presets + 8 · 16-bit saving | ✓ 8, 45,711 · 239,731 bytes (8-bit is +5% from v1.0.0's 43,446 due to dither) |
 | `engine_regression.js` | 16-bit output · statistics of 134 combinations compared against the baseline | 134/134 byte-identical |
@@ -694,6 +720,7 @@ The invariants are measured with 8-bit dithering on (default). Apart from the st
 | `gamut_sniff.js` | Wide-gamut detection: 5 AVIF primary-image colr cases, 4 PNG color chunk orders, 5 cases with over 2 MB of metadata · boxes before the color information (JPEG extended XMP, PNG text chunks, AVIF mdat before meta), 4 cICP primaries codes (unspecified · reserved · sRGB) | ✓ 18 (v1.1.0 got 10 wrong) |
 | `dither_probe.js` | 8-bit dither banding metric | [9.7](#97-8-bit-dithering) |
 | `texture_seam.js` | Texture on: seams · determinism · grayscale · hue of bright colors | Seams at most 1 (same as texture off), two computations 0, grayscale 0, bright red color ratio change 2.9% (v1.1.0: 14.0%) |
+| `pop_seam.js` | 「Perceptual」: tile seams · determinism · grayscale · no halo (within the neighborhood range of the Accuracy result) · gamma mode · hue of bright colors | Seam at most 1 (same as Accuracy), 0 between two runs, grayscale 0, at most 0.9 levels beyond the neighborhood range (8-bit rounding), bright red color ratio change 2.8% |
 | `p3_browser.js` | P3 color preservation in real Chromium (primaries · mixed colors, including simulated environments where blob: images are blocked and `createImageBitmap` converts to sRGB) | [9.9](#99-display-p3) |
 
 ### 9.2 Data
@@ -804,6 +831,27 @@ Measured in real Chromium (Playwright) (`tests/p3_browser.js`). P3 primary patch
 
 The gray 127 is the value of the test image itself. The Display P3 ICC profile generated by the app was also checked with LittleCMS (Pillow ImageCms). Converting P3 (200, 100, 50) · (60, 180, 220) to sRGB gives the same values as computing with the primaries matrix. JPEG · PNG with an sRGB profile attached and dataset files without a profile were detected as sRGB, and the P3 test images and v1.1.0 saved files as wide gamut.
 
+### 9.10 Perceived sharpness
+
+The 23 validation images (pixel art excluded) × 3 conditions (4× clean, 4× degraded, 8× degraded) = 70 cases are upscaled with the same settings as 「Auto」, comparing 「Accuracy」 and 「Perceptual」 (`research/pop/pop_probe.js`, `research/results/pop_val.json`). The error is $`|\ln A| + |\ln C|`$ from [4.21](#421-perceived-sharpness), which counts being blunter than the ground truth and overshooting it equally. Halo is the mean amount by which the result exceeds the ground-truth neighborhood range (radius = scale) around ground-truth edges (within 2× the scale); flat-area noise is the high-frequency RMS of the result where the ground truth is flat (bottom 30% of slope).
+
+| Perceptual 100% | Error (Accuracy → Perceptual) | Improved | Edge slope A | Local contrast C | Halo | Flat-area noise | PSNR | SSIM |
+|---|---|---|---|---|---|---|---|---|
+| Photos, 9 cases | 0.303 → 0.226 | 6/9 | 0.849 → 0.949 | 0.967 → 1.088 | +0.16 levels | ×1.09 | −0.22 dB | −0.0003 |
+| Paintings · illustrations · manga, 26 cases | 0.676 → 0.529 | 20/26 | 0.731 → 0.825 | 0.865 → 0.983 | +0.12 levels | ×1.16 | −0.16 dB | +0.006 |
+| Line art · documents · UI · logos, 35 cases | 0.621 → 0.559 | 20/35 | 0.865 → 0.949 | 0.982 → 1.078 | +0.52 levels | ×0.95 | −0.06 dB | +0.012 |
+| All 70 cases | 0.600 → 0.505 | 46/70 | 0.813 → 0.903 | 0.937 → 1.044 | +0.33 levels | ×1.05 | −0.12 dB | +0.008 |
+
+| Strength (all 70 cases) | Error | Improved | Halo | Flat-area noise | PSNR | SSIM |
+|---|---|---|---|---|---|---|
+| 50% | 0.526 | 49/70 | +0.22 levels | ×1.00 | −0.06 dB | +0.006 |
+| 100% | 0.505 | 46/70 | +0.33 levels | ×1.05 | −0.12 dB | +0.008 |
+| 150% | 0.497 | 46/70 | +0.40 levels | ×1.09 | −0.17 dB | +0.008 |
+
+Edge slope and local contrast rise toward the ground truth, while halo and flat-area noise barely increase. Photos and pictures improve in two thirds or more of the cases, but line art, documents, UI and logos improve in 20/35, just over half: their edges are already steep, so local contrast easily overshoots the ground truth. Comparison images are in `research/results/pop_samples/` (from left: ground truth · Accuracy · Perceptual 50% · 100% · 150%; 4× degraded, and a 500px ground truth halved and upscaled 2×).
+
+At first, 「Perceptual」 also added fine grain (texture revival, 25% at strength 100%). The texture metric improved (high-frequency energy ratio R 0.13 → 0.30), but flat-area noise rose 4.0× and SSIM dropped by 0.044 (`pop_val_grain.json`), and dots showed on smooth surfaces. So 「Perceptual」 raises only edges and local contrast, and fine grain is chosen separately with the 「Texture revival」 slider.
+
 ---
 
 ## 10. Strengths
@@ -836,6 +884,8 @@ The gray 127 is the value of the test image itself. The Display P3 ICC profile g
 
 **Texture revival is grain.** It matches the amount of texture, but the position and shape are invented noise, so raising the strength makes it look like noise. At 100% paintings overshoot greatly. For illustrations the effect is small, and flat graphics improve only about half the time at any strength. It is recommended only at low strength for photos and paintings ([9.8](#98-texture-revival)).
 
+**「Perceptual」 adds no information.** It redraws the edges and contrast the source holds so they stand out, but creates no detail the source lacked. On images whose edges are already steep, such as line art, documents, UI and logos, only a little over half of the cases improve (20/35). A blurry result, such as a very small source upscaled a lot, stays blurry with 「Perceptual」 ([9.10](#910-perceived-sharpness)).
+
 **Logos and comics only for JPEG input.** They did not pass the adoption rule on re-measured clean input, so large-scale restoration search values are not used for clean input such as PNG. An image that was originally JPEG and was re-saved as PNG is treated as clean input even if it has JPEG artifacts.
 
 **Illustrations not adopted.** Results were mixed across conditions, so large-scale restoration search values are not used. There is room to look again with other degradations (strong noise, different blur, originally sharp originals) and larger images.
@@ -855,6 +905,11 @@ The gray 127 is the value of the test image itself. The Display P3 ICC profile g
 ---
 
 ## 12. Changelog
+
+### v1.2.0 — Two goals: accuracy and perception
+
+- **「Goal: Accuracy · Perceptual」.** The default 「Accuracy」 upscales as close to the original as before (the output is byte-identical to v1.1.1). 「Perceptual」 raises edge slope and local contrast to the ground-truth level so the result looks crisper. It never exceeds the surrounding brightness range, so no white fringes appear. On 70 validation cases the error against the ground truth fell from 0.600 to 0.505, with flat-area noise ×1.05 and PSNR −0.12 dB ([2.9](#29-accuracy-and-perceived-sharpness-are-different-goals), [9.10](#910-perceived-sharpness)).
+- Perceptual strength 25–150%; presets and 「Auto」 do not change this choice. Auto scale counts the margin, memory and saved-PNG compression ratio of 「Perceptual」.
 
 ### v1.1.1 — Fixes for issues found in code review
 

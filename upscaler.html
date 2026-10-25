@@ -294,6 +294,19 @@ dialog .detail.warn{color:var(--warn)}
       </div>
 
       <div class="grp">
+        <h2>목표</h2>
+        <div class="chips wide" id="lookSel">
+          <button class="chip" data-look="acc">정확도</button>
+          <button class="chip" data-look="pop">체감</button>
+        </div>
+        <label class="row" id="popRow">
+          <span class="rowhead">체감 세기 <b class="num" id="popAmtV">100%</b></span>
+          <input type="range" id="popAmt" min="0.25" max="1.5" step="0.05" value="1">
+        </label>
+        <p class="hint">「정확도」는 원본에 가장 가깝게 키웁니다(다시 줄이면 원본과 같아지도록). 「체감」은 그 결과에서 눈이 선명함으로 느끼는 것을 올립니다. 윤곽을 더 가파르게, 묻힌 명암은 드러나게 합니다. 윤곽 둘레의 밝기 범위를 넘지 않게 해 흰 테두리(헤일로)가 생기지 않고, 평탄한 면의 잡음은 거의 늘지 않습니다. 원본과의 수치(PSNR)는 조금 내려갑니다. 사진이 밀랍처럼 매끈하면 아래 「질감 되살리기」 20~30%를 함께 쓰면 고운 결이 살아납니다. 프리셋과 「자동」은 이 선택을 바꾸지 않으며, 최근접·픽셀아트 커널과 1×에서는 쓰지 않습니다.</p>
+      </div>
+
+      <div class="grp">
         <h2>재구성 커널</h2>
         <select id="kernel">
           <option value="edi">엣지 적응 DCCI (권장)</option>
@@ -2757,6 +2770,71 @@ function ENGINE_FACTORY() {
     }
   }
 
+  /* ── 체감 선명도 (「체감」 모드) ──
+     「정확도」(원본에 가장 가까운 결과)에서, 눈이 선명함으로 느끼는 두 가지를 올린다. 밝기 축(질감과 같다)에서만 바꾸고
+     미리곱 색 세 채널에 같은 비율로 곱한다 → 색상·회색·알파 그대로.
+     · 윤곽 기울기: Y − G(σ1·배율) 대역 — 확대가 무디게 만든 원본 나이퀴스트 근처의 기울기
+     · 국소 대비: G(σ1·배율) − G(σ2·배율) 대역 — 원본 몇 화소 크기의 명암 차
+     · 잡음 문턱 τ: 대역 진폭이 τ보다 작으면 거의 올리지 않는다(평탄면 잡음·JPEG 흔적을 키우지 않게, 언샤프와 같은 꼴)
+     · 국소 대비는 진폭이 클수록 덜 올린다(d / (1 + |d|/c2)) — 이미 뚜렷한 명암은 그대로, 묻힌 명암을 드러낸다.
+     · 헤일로 없음: 올리는 양을 둘레(반지름 win·배율)의 최소·최대까지 남은 여유로 부드럽게 줄인다(Δ·h/(h + Δ)).
+       새 극값을 만들지 않아 윤곽 둘레에 흰·검은 테두리가 생기지 않고, 경계에 딱 붙지 않아 면이 뭉치지(포스터화) 않는다.
+     세기 100%의 상수는 research/pop/pop_probe.js로 맞춘다(정답 대비 윤곽 기울기·국소 대비가 같아지는 값). 기본은 「정확도」(끔). */
+  const POP = { s1: 0.5, s2: 2, k1: 0.5, k2: 1.5, c2: 0.05, tau: 0.004, win: 0.75 };   // k1·k2: research/results/pop_grid.json
+  function popMargin(L, P) {
+    const Q = P || POP, b = (sg) => boxRadii(sg, 3).reduce((a, r) => a + Math.round(r), 0);
+    return b(Q.s1 * L) + b(Math.sqrt(Q.s2 * Q.s2 - Q.s1 * Q.s1) * L) + Math.max(1, Math.round(Q.win * L)) + 1;
+  }
+  /* 결과 영역 전체를 고친다(언샤프처럼). 가장자리 여백(popMargin)의 값은 틀릴 수 있지만 타일 안쪽에는 닿지 않는다 */
+  function addPop(Us, RW, RH, RX0, RY0, OW, OH, L, amt, lin, P) {   // RX0·RY0: 영역 원점, OW·OH: 결과 전체 크기(둘레 범위는 그림 안에서만)
+    const Q = P || POP, n = RW * RH, A = Us.length > 3 ? Us[3] : null;
+    const Y = new Float32Array(n), G1 = new Float32Array(n), G2 = new Float32Array(n), tmp = new Float32Array(n);
+    // 밝기는 보이는 값(0~상한으로 자른 채널)에서 잰다 — 선명화·평활이 남긴 범위 밖 값으로 둘레 범위를 잡으면, 잘려 보이는 이웃보다 밝아질 수 있다
+    for (let i = 0; i < n; i++) {
+      const cap = A ? (A[i] < 0 ? 0 : A[i] > 1 ? 1 : A[i]) : 1, cl = (v) => (v < 0 ? 0 : v > cap ? cap : v);
+      const l = 0.2126 * cl(Us[0][i]) + 0.7152 * cl(Us[1][i]) + 0.0722 * cl(Us[2][i]); Y[i] = l > 0 ? (lin ? Math.sqrt(l) : l) : 0;
+    }
+    blurSync(Y, G1, RW, RH, Q.s1 * L, tmp, 3);
+    blurSync(G1, G2, RW, RH, Math.sqrt(Q.s2 * Q.s2 - Q.s1 * Q.s1) * L, tmp, 3);   // σ1에 겹쳐 σ2
+    // 둘레 최소·최대 (가로 → 세로)
+    const r = Math.max(1, Math.round(Q.win * L)), hl = new Float32Array(n), hh = tmp, lo = new Float32Array(n), hi = new Float32Array(n);
+    const xa = Math.max(0, -RX0), xb = Math.min(RW - 1, OW - 1 - RX0), ya = Math.max(0, -RY0), yb = Math.min(RH - 1, OH - 1 - RY0);
+    for (let y = 0; y < RH; y++) {
+      const o = y * RW;
+      for (let x = 0; x < RW; x++) {
+        let a = Infinity, b = -Infinity;
+        const k0 = Math.max(x - r, xa), k1 = Math.min(x + r, xb);
+        for (let k = k0 <= k1 ? k0 : x; k <= (k0 <= k1 ? k1 : x); k++) { const v = Y[o + k]; if (v < a) a = v; if (v > b) b = v; }
+        hl[o + x] = a; hh[o + x] = b;
+      }
+    }
+    for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
+      let a = Infinity, b = -Infinity;
+      const k0 = Math.max(y - r, ya), k1 = Math.min(y + r, yb);
+      for (let k = k0 <= k1 ? k0 : y; k <= (k0 <= k1 ? k1 : y); k++) { const j = k * RW + x; if (hl[j] < a) a = hl[j]; if (hh[j] > b) b = hh[j]; }
+      lo[y * RW + x] = a; hi[y * RW + x] = b;
+    }
+    const t2 = Q.tau * Q.tau;
+    for (let i = 0; i < n; i++) {
+      const y = Y[i];
+      if (!(y > 1e-6)) continue;
+      let d1 = y - G1[i], d2 = G1[i] - G2[i];
+      if (t2 > 0) { d1 *= (d1 * d1) / (d1 * d1 + t2); d2 *= (d2 * d2) / (d2 * d2 + t2); }
+      const dv = amt * (Q.k1 * d1 + Q.k2 * d2 / (1 + Math.abs(d2) / Q.c2));
+      const room = dv > 0 ? hi[i] - y : y - lo[i];             // 둘레 최소·최대까지 남은 여유
+      let v = room > 0 ? y + dv * room / (room + Math.abs(dv)) : y;
+      if (v < 0) v = 0;
+      const s = v / y, cap = A ? (A[i] < 0 ? 0 : A[i] > 1 ? 1 : A[i]) : 1;
+      let f = lin ? s * s : s;                               // 감마 값은 공통 비율을 곱해도 선형광에서 세 채널이 같은 비율로 바뀐다
+      for (let c = 0; c < 3; c++) { const u = Us[c][i]; Us[c][i] = u < 0 ? 0 : u > cap ? cap : u; }   // 보이는 값에 비율을 곱한다
+      if (f > 1) {                                           // 밝힐 때는 가장 큰 채널이 상한(알파·1)을 넘지 않게 — 색상이 바뀌지 않게
+        const mx = Math.max(Us[0][i], Us[1][i], Us[2][i]);
+        if (mx * f > cap) f = Math.max(1, cap / mx);
+      }
+      Us[0][i] *= f; Us[1][i] *= f; Us[2][i] *= f;
+    }
+  }
+
   /* ── 타일 하나 계산 ──
      job = { kind, cfg, tile:{X0,Y0,TW,TH}, crop:{x0,y0,w,h,P:[R,G,B],A,orig}, fmt:'rgba8'|'png16'|'png8', stats, diff } */
   function renderTile(job) {
@@ -2854,7 +2932,9 @@ function ENGINE_FACTORY() {
     }
     // 5) 윤곽 재작도 (채널별)
     if (CF) for (const c of chans) steepenRegion(Us[c], RW, RH, RX0, RY0, Gu, CF, cw, ch, cx0, cy0, sx, sy, c, ncF);
-    // 6) 질감 되살리기 — 나눠 확대면 원본(기준) 조각에서 잰다(중간 영상은 이미 보간돼 고운 대역이 없다)
+    // 6) 체감 선명도 — 「체감」 모드에서만. 질감보다 먼저(얹은 결을 키우지 않게)
+    if (cfg.pop > 0 && !exact && !one) addPop(Us, RW, RH, RX0, RY0, cfg.ow, cfg.oh, rf ? Math.max(cfg.rsx, cfg.rsy) : Math.max(sx, sy), cfg.pop, cfg.lin, cfg.popP);
+    // 7) 질감 되살리기 — 나눠 확대면 원본(기준) 조각에서 잰다(중간 영상은 이미 보간돼 고운 대역이 없다)
     if (cfg.tex > 0 && !exact && !one) {
       const L = rf ? Math.max(cfg.rsx, cfg.rsy) : Math.max(sx, sy);
       const C = cfg.texC || TEX_C, band = cfg.texBand || TEX_BAND;
@@ -2915,7 +2995,7 @@ function ENGINE_FACTORY() {
   return {
     PORT, AC, KER, boxRadii, renderTile, restoreBand,
     guidePlane, interleave3, immerSigma, dcciStage, tapsFor, ediUpsample, clampToCells,
-    consistencyPlane, rescaleErr, steepenPlane, gammaToLin, dctRestore, pixelArtUpscale, texMargin,
+    consistencyPlane, rescaleErr, steepenPlane, gammaToLin, dctRestore, pixelArtUpscale, texMargin, popMargin,
   };
 }
 const ENGINE = ENGINE_FACTORY();
@@ -3067,7 +3147,7 @@ function srcOtherBytes(cur, all) {
 
 /* ── 설정 스냅숏 — 결과는 만들 때의 설정을 그대로 품는다 (저장·재계산이 늘 같은 결과를 낸다) ── */
 const SET_KEYS = ["scale", "mode", "kernel", "linear", "cons", "clamp", "crAmt", "dcAmt", "dnAmt", "dnRad", "rlIter", "rlSig",
-                  "usAmt", "usRad", "usThr", "usOvr", "wbAmt", "aaAmt", "dbAmt", "staged", "stageWay", "stageMid", "dither8", "texAmt"];
+                  "usAmt", "usRad", "usThr", "usOvr", "wbAmt", "aaAmt", "dbAmt", "staged", "stageWay", "stageMid", "dither8", "texAmt", "look", "popAmt"];
 function snapSettings() { const o = {}; for (const k of SET_KEYS) o[k] = st[k]; return o; }
 function linOf(set) { return set.mode === "area" ? Math.sqrt(set.scale) : set.scale; }
 /* 나눠 확대 — 체크·나누는 방식·단계 사이 선명화는 사용자가 정한 대로 동작한다(더 나빠도 켜면 나눈다).
@@ -3239,8 +3319,10 @@ function buildCfg(src, set, dw, dh, hasAlpha) {
     sig8: src.sig8, nOff: 10 * src.sig8, Lx: sx, Ly: sy,
     dither: set.dither8 ? 1 : 0,
     tex: set.texAmt > 0 && !exact ? set.texAmt : 0,
+    pop: set.look === "pop" && set.popAmt > 0 && !exact && !one ? set.popAmt : 0,
   };
   if (src.ref) { cfg.rsx = dw / src.ref.sw; cfg.rsy = dh / src.ref.sh; }   // 나눠 확대: 기준은 원본
+  if (cfg.pop > 0) { cfg.ow = dw; cfg.oh = dh; }             // 체감: 둘레 범위를 그림 안에서만 재려고 결과 크기를 넘긴다
   cfg.margin = outMarginFor(cfg);
   return cfg;
 }
@@ -3424,6 +3506,7 @@ function outMarginFor(cfg) {
     m += Math.ceil(2 * span * Math.max(1, Math.round(cfg.aaAmt * 4))) + 2;
   }
   if (cfg.crisp) m += 2;
+  if (cfg.pop > 0) m += ENGINE.popMargin(cfg.rsx ? Math.max(cfg.rsx, cfg.rsy) : Math.max(cfg.Lx, cfg.Ly), cfg.popP);   // 체감 선명도: 두 흐림 + 둘레 최소·최대
   if (cfg.tex > 0) m += ENGINE.texMargin(cfg.rsx ? Math.max(cfg.rsx, cfg.rsy) : Math.max(cfg.Lx, cfg.Ly));   // 질감: 결과 고주파 에너지 창
   return m;
 }
@@ -4664,7 +4747,7 @@ const ITEM_KEYS = ["uid", "name", "srcCanvas", "srcW", "srcH", "hasAlpha", "cs",
 const st = {
   items: [], idx: -1,
   name: "", srcCanvas: null, srcW: 0, srcH: 0, hasAlpha: false, cs: "srgb", note: "", boxes: [], jgrid: null, jq: null, rm: null,
-  scale: 2, scaleAuto: false, mode: "area", kernel: "edi", linear: true, cons: 1, clamp: 1, crAmt: 0, dcAmt: 0, depth: 8, dither8: true, texAmt: 0, uid: 0,
+  scale: 2, scaleAuto: false, mode: "area", kernel: "edi", linear: true, cons: 1, clamp: 1, crAmt: 0, dcAmt: 0, depth: 8, dither8: true, texAmt: 0, look: "acc", popAmt: 1, uid: 0,
   staged: false, stageWay: "small2", stageMid: 1, wbAmt: 0, aaAmt: 0, dbAmt: 0,
   dnAmt: 0, dnRad: 3,
   rlIter: 3, rlSig: 0.6,
@@ -4826,7 +4909,7 @@ function scaleLabel(v) { return v + "×"; }
 function bindRange(id, key, fmt) {
   const el = $("#" + id), out = $("#" + id + "V");
   const upd = () => { st[key] = +el.value; out.textContent = fmt(+el.value); };
-  el.addEventListener("input", () => { upd(); markPreset(); if (key === "usRad" || key === "texAmt") updateSizeNote(); });   // 타일 여백·배율 자동 예산이 바뀌는 값
+  el.addEventListener("input", () => { upd(); markPreset(); if (key === "usRad" || key === "texAmt" || key === "popAmt") updateSizeNote(); });   // 타일 여백·배율 자동 예산이 바뀌는 값
   el.addEventListener("change", save);
   upd();
 }
@@ -4844,6 +4927,19 @@ bindRange("usRad", "usRad", (v) => (v === 0 ? "자동" : v.toFixed(1) + " px"));
 bindRange("usThr", "usThr", (v) => v.toFixed(3));
 bindRange("usOvr", "usOvr", (v) => v.toFixed(2));
 bindRange("texAmt", "texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%"));
+bindRange("popAmt", "popAmt", (v) => Math.round(v * 100) + "%");
+/* 목표: 「정확도」(원본에 가장 가깝게) · 「체감」(눈에 선명하게). 프리셋·「자동」은 바꾸지 않는 사용자 선택이다 */
+function syncLook() {
+  [...$("#lookSel").children].forEach((c) => c.setAttribute("aria-pressed", c.dataset.look === st.look ? "true" : "false"));
+  const off = st.kernel === "nearest" || st.kernel === "pixelart";
+  $("#popRow").hidden = st.look !== "pop";
+  $("#popAmt").disabled = off;
+  $("#popAmtV").textContent = off ? "이 커널에서는 쓰지 않음" : Math.round(st.popAmt * 100) + "%";
+}
+$("#lookSel").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-look]"); if (!b) return;
+  st.look = b.dataset.look; syncLook(); updateSizeNote(); save();
+});
 
 $("#btnAuto").addEventListener("click", () => {
   if (!hasImg() || st.busy) return;
@@ -4925,7 +5021,7 @@ $("#btnColorAuto").addEventListener("click", () => {
   }, 30);
 });
 
-$("#kernel").addEventListener("change", (e) => { st.kernel = e.target.value; markPreset(); syncTexControl(); updateSizeNote(); save(); });
+$("#kernel").addEventListener("change", (e) => { st.kernel = e.target.value; markPreset(); syncTexControl(); syncLook(); updateSizeNote(); save(); });
 /* 질감 되살리기는 최근접(원본 복제)·픽셀아트(팔레트 보존) 커널에서는 쓰지 않는다 — 슬라이더를 끄고 이유를 보인다 */
 function syncTexControl() {
   const off = st.kernel === "nearest" || st.kernel === "pixelart", el = $("#texAmt");
@@ -4963,9 +5059,10 @@ function applyStateToControls() {
    ["dnAmt", (v) => (v === 0 ? "끔" : v.toFixed(2))], ["dnRad", (v) => v + " px"],
    ["rlIter", (v) => String(v)], ["rlSig", (v) => v.toFixed(2)], ["usAmt", (v) => v.toFixed(2)],
    ["usRad", (v) => (v === 0 ? "자동" : v.toFixed(1) + " px")], ["usThr", (v) => v.toFixed(3)], ["usOvr", (v) => v.toFixed(2)],
-   ["texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%")]]
+   ["texAmt", (v) => (v === 0 ? "끔" : Math.round(v * 100) + "%")], ["popAmt", (v) => Math.round(v * 100) + "%"]]
     .forEach(([k, f]) => { $("#" + k).value = st[k]; $("#" + k + "V").textContent = f(st[k]); });
   syncTexControl();
+  syncLook();
   syncScaleChips();
   markPreset();
   updateSizeNote();
@@ -4991,7 +5088,7 @@ function save() {
   try {
     localStorage.setItem("upscaler.v1", JSON.stringify({
       scale: st.scale, scaleAuto: !!st.scaleAuto, mode: st.mode, kernel: st.kernel, linear: st.linear, staged: st.staged, stageWay: st.stageWay, stageMid: st.stageMid, wbAmt: st.wbAmt, aaAmt: st.aaAmt, dbAmt: st.dbAmt, cons: st.cons, clamp: st.clamp, crAmt: st.crAmt, dcAmt: st.dcAmt, depth: st.depth, dnAmt: st.dnAmt, dnRad: st.dnRad, rlIter: st.rlIter, rlSig: st.rlSig,
-      usAmt: st.usAmt, usRad: st.usRad, usThr: st.usThr, usOvr: st.usOvr, dither8: !!st.dither8, texAmt: st.texAmt, colorSep: 1
+      usAmt: st.usAmt, usRad: st.usRad, usThr: st.usThr, usOvr: st.usOvr, dither8: !!st.dither8, texAmt: st.texAmt, look: st.look, popAmt: st.popAmt, colorSep: 1
     }));
   } catch (e) {}
 }
@@ -5015,13 +5112,14 @@ function outDims() {
 /* 저장 PNG 압축률(압축 크기 / 날 바이트)의 최대값 — data/big 47장을 1.1·1.25·1.5·2·3·4× 확대해 잰 값(research/results/png_ratio.json).
    2× 이상은 프리셋만·「자동」 탐색값(AUTO_BIG) 두 갈래 중 큰 쪽, 2× 미만은 탐색값을 쓰지 않으므로 프리셋만.
    결과 배율 L을 사이에 둔 두 측정 배율 중 큰 값(4× 이상은 4× 값, 1.1× 미만은 날 크기로 본다 — 넓이 배율 1.25×도 가로·세로 1.12×라 측정 안).
-   질감 되살리기를 켜면 고운 결이 압축을 덜 되게 한다(세기 25~100% 중 큰 쪽). 다른 그림을 위해 10% 여유, 날 크기보다 조금 크게까지 */
+   질감 되살리기를 켜면 고운 결이 압축을 덜 되게 한다(세기 25~100% 중 큰 쪽). 다른 그림을 위해 10% 여유, 날 크기보다 조금 크게까지.
+   「체감」(세기 최대 150%, 질감 끔·켬)으로도 재서 두 목표 중 큰 값이다(research/results/png_ratio_pop.json) — 대부분 「정확도」가 크고, 몇 칸만 최대 +0.009 */
 var PNG_RATIO = {                                             // 배율 → { 비트 수: [질감 끔, 질감 켬] } (소수 셋째 자리 올림)
-  1.1: { 8: [0.712, 0.767], 16: [0.922, 0.929] },
-  1.25: { 8: [0.679, 0.766], 16: [0.911, 0.927] },
-  1.5: { 8: [0.650, 0.760], 16: [0.894, 0.925] },
-  2: { 8: [0.688, 0.790], 16: [0.875, 0.933] },
-  3: { 8: [0.615, 0.751], 16: [0.839, 0.931] },
+  1.1: { 8: [0.721, 0.767], 16: [0.928, 0.933] },
+  1.25: { 8: [0.686, 0.766], 16: [0.913, 0.928] },
+  1.5: { 8: [0.650, 0.760], 16: [0.898, 0.926] },
+  2: { 8: [0.688, 0.790], 16: [0.876, 0.933] },
+  3: { 8: [0.615, 0.751], 16: [0.842, 0.931] },
   4: { 8: [0.562, 0.731], 16: [0.817, 0.934] },
 };
 function pngRatioMax(depth, tex, L) {
@@ -5053,7 +5151,9 @@ function renderBudget(v, mode, over) {                       // over: 아직 적
   const keep = nLast * (nc + 1) * 4 + (steps.length > 1 ? n0 * nc * 4 : 0);
   // 질감 되살리기: 결과 에너지 창만큼 타일 여백이 늘고(texMargin), 밝기·저역·잡음 평면 등 화소당 약 16 B를 더 쓴다(여유 두어 24 B)
   const texM = set.texAmt > 0 && set.kernel !== "nearest" && set.kernel !== "pixelart" && L > 1 ? ENGINE.texMargin(L) : 0;
-  const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * texM) * (To + 64 + 2 * texM) * (48 + (texM ? 24 : 0));
+  // 「체감」: 두 흐림·둘레 최소·최대만큼 여백이 늘고, 밝기·흐림·최소·최대 평면 등 화소당 28 B를 더 쓴다(여유 두어 32 B)
+  const popM = set.look === "pop" && set.popAmt > 0 && set.kernel !== "nearest" && set.kernel !== "pixelart" && L > 1 ? ENGINE.popMargin(L) : 0;
+  const work = Math.max(1, POOL.size || 1) * (To + 64 + 2 * (texM + popM)) * (To + 64 + 2 * (texM + popM)) * (48 + (texM ? 24 : 0) + (popM ? 32 : 0));
   const band = W * Math.max(To * 4, 128 * 8) * 1.5;
   // 저장: 압축된 PNG 조각이 끝날 때까지 메모리에 모인다 — 데이터 47장에서 잰 최대 압축률(질감·비트 수별)에 여유 10%
   const png = STREAM_OK ? px * nc * (st.depth === 16 ? 2 : 1) * pngRatioMax(st.depth === 16 ? 16 : 8, texM > 0, L) : 0;

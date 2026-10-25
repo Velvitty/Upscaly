@@ -5,7 +5,7 @@
 Upscaly es una herramienta de ampliación de imágenes que aspira a no perder información. Funciona con un solo archivo (`upscaler.html`) y realiza todos los cálculos dentro del navegador.
 No hay nada que instalar ni ningún sitio al que subir nada. La imagen nunca sale del dispositivo.
 
-Versión actual **v1.1.1** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Versión actual **v1.2.0** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Índice**
 
@@ -43,13 +43,14 @@ Al agrandar una imagen pequeña, lo habitual es que se vuelva borrosa, que apare
 - **Los colores de las fotos de móvil, tal cual.** Las fotos Display P3 de iPhone y otros dispositivos se leen en P3 y se guardan en P3, para que los rojos y verdes intensos no se apaguen.
 - **Restauración de textura (opcional).** Se puede volver a añadir una textura fina a piel o tejidos que, al ampliarlos mucho, han quedado lisos como cera. Está desactivada por defecto.
 - **Las imágenes transparentes también quedan limpias.** El color no se corre en los bordes semitransparentes.
+- **Dos objetivos: precisión y percepción.** Por defecto, 「Precisión」(정확도) amplía lo más cerca posible del original. 「Percepción」(체감) vuelve los contornos más pronunciados y hace aflorar el contraste enterrado, para que la imagen se vea más nítida. No aparecen bordes blancos (halos).
 
 ### Modo de uso
 
 1. Abra `upscaler.html` en un navegador actual.
 2. Pulse **Abrir imagen** (이미지 열기), arrastre la imagen a la pantalla o péguela. Se pueden abrir hasta 20 imágenes a la vez, en JPEG, PNG, WebP o AVIF.
 3. Elija el **factor** (배율). Puede basarse en la longitud de ancho y alto (1–12×) o en el número de píxeles (superficie); si elige 「Automático」, se selecciona el mayor factor (3–8×) que este dispositivo puede procesar hasta el final.
-4. Pulse **「Automático: (recomendado)」(자동: (권장, 추천))**. Mide el tipo y el estado de la imagen, rellena todos los ajustes de abajo y anota brevemente en qué se ha basado.
+4. Pulse **「Automático: (recomendado)」(자동: (권장, 추천))**. Mide el tipo y el estado de la imagen, rellena todos los ajustes de abajo y anota brevemente en qué se ha basado. Si verse nítido importa más que ser fiel al original, elija 「Percepción」 en **Objetivo** (목표).
 5. Pulse **Ejecutar ampliación** (확대 실행). Si **Comparar con el original** (원본 비교) está activado, la mitad izquierda de la pantalla muestra el original ampliado por el navegador y la mitad derecha el resultado. La vista se desplaza arrastrando y se amplía con la rueda; están los botones **Ajustar** (맞춤, tecla F), **1:1** y **Comparar con el original** (tecla C).
 6. **Guardar PNG** (PNG 저장) guarda la imagen actual y **Guardar todo** (모두 저장) guarda de una vez todas las imágenes procesadas.
 
@@ -61,6 +62,7 @@ Los paneles de la derecha de la pantalla están dispuestos en el orden de proces
 |---|---|
 | Factor (배율) | Cuántas veces ampliar. 1× solo limpia, sin ampliar |
 | Preajuste · automático (프리셋 · 자동) | 33 preajustes o 「Automático」 |
+| Objetivo (목표) | 「Precisión」 (lo más cerca del original, por defecto) o 「Percepción」 (sube la pendiente de los contornos y el contraste local para verse más nítido, intensidad 25–150 %). Los preajustes y 「Automático」 no lo cambian |
 | Núcleo de reconstrucción (재구성 커널) | Cómo rellenar los píxeles nuevos (DCCI, pixel art, Lanczos, Catmull-Rom, Mitchell, vecino más próximo), ampliación por etapas, bloqueo del ringing, consistencia con el original |
 | Limpieza de ruido y manchas (노이즈·잡티 정리) | Elimina el ruido y los artefactos JPEG antes de ampliar |
 | Recuperación de nitidez (선명도 복원) | Deshace antes de ampliar el desenfoque producido al fotografiar o escanear |
@@ -131,6 +133,10 @@ Muchas fotos de móvil actuales se toman en la gama Display P3, más amplia que 
 
 Los ajustes adecuados para una foto estropean un dibujo lineal, y los adecuados para un dibujo lineal estropean una foto. La consistencia con el original es buena en fotos, pero en un dibujo lineal en el que dos colores se separan de forma tajante restaura como correctos los escalones del original. Por eso 「Automático」 primero identifica el tipo de imagen (clasificador de 9 clases), parte del preajuste adecuado para ese tipo y ajusta los detalles con valores medidos sobre esa imagen. Para ampliaciones grandes usa valores hallados explorando un espacio de 1.52 billones de configuraciones ([9.4](#94-exploración-de-la-restauración-a-gran-escala)).
 
+### 2.9 Precisión y percepción son objetivos distintos
+
+El resultado más cercano al original (el de PSNR más alto) no es el que se ve más nítido. La ampliación embota incluso los contornos que la resolución de origen puede contener (pendiente de contorno 0.81× la de la referencia) y debilita el contraste a la escala de unos pocos píxeles de origen (0.94×). El ojo percibe ambas cosas como nitidez. Por eso hay dos objetivos. 「Precisión」 es la restauración de siempre; 「Percepción」 devuelve, sobre ella, estas dos magnitudes al nivel de la referencia. No crea nuevos extremos, así que no aparecen bordes blancos, ni dibuja textura que el original no tenía. A cambio, las cifras frente al original bajan un poco ([4.21](#421-nitidez-percibida), [9.10](#910-nitidez-percibida)).
+
 ---
 
 ## 3. Funcionamiento
@@ -182,8 +188,9 @@ El resultado se calcula dividido en teselas (de 512 a 1024 px según el factor; 
 5. **Máscara de enfoque.** Suprime los halos con un limitador de rodilla proporcional a la amplitud local.
 6. **Suavizado direccional.** Promedia solo en la dirección tangente hallada con el tensor de estructura del original.
 7. **Redibujado de contornos.** Vuelve a dibujar contornos de 1 píxel de anchura con la distancia con signo.
-8. **Restauración de textura.** Solo si está activada: añade al resultado la textura fina que le falta, según la intensidad de textura medida en el original. En la ampliación por etapas se mide en el original, no en la imagen intermedia. No se usa con el vecino más próximo, que replica el original tal cual, ni con el núcleo de pixel art, que conserva la paleta; en esos casos el control deslizante también se desactiva.
-9. **Deshacer la premultiplicación y codificar.** Se convierte a 8 bits para la pantalla y a 8 o 16 bits para guardar. En 8 bits, si el tramado está activado (por defecto), justo antes de redondear se mezcla un ruido fino determinado por las coordenadas. La pantalla y el guardado en 8 bits usan las mismas teselas, así que se guarda exactamente lo que se ve.
+8. **Nitidez percibida.** Solo cuando el objetivo es 「Percepción」, sube la pendiente de los contornos y el contraste local en la luminancia, sin superar nunca el rango de brillo del entorno ([4.21](#421-nitidez-percibida)).
+9. **Restauración de textura.** Solo si está activada: añade al resultado la textura fina que le falta, según la intensidad de textura medida en el original. En la ampliación por etapas se mide en el original, no en la imagen intermedia. No se usa con el vecino más próximo, que replica el original tal cual, ni con el núcleo de pixel art, que conserva la paleta; en esos casos el control deslizante también se desactiva.
+10. **Deshacer la premultiplicación y codificar.** Se convierte a 8 bits para la pantalla y a 8 o 16 bits para guardar. En 8 bits, si el tramado está activado (por defecto), justo antes de redondear se mezcla un ruido fino determinado por las coordenadas. La pantalla y el guardado en 8 bits usan las mismas teselas, así que se guarda exactamente lo que se ve.
 
 El grupo de workers lanza tantos como núcleos − 1 (máximo 8), y si no responden en 5 segundos se calcula en el hilo principal con el mismo motor. El motor (`ENGINE_FACTORY`) es un conjunto de funciones de cálculo puras, así que el mismo código se carga también como worker mediante Blob URL.
 
@@ -452,20 +459,20 @@ Con factor $`L`$, número de píxeles del original $`n_0`$ y número de píxeles
 ```math
 \begin{aligned}
 M_{\mathrm{prep}} &= \max\big(32\,n_0,\ \ 4 c\, n_0 + 32\, n_0 s_k^2\big) && \text{preparación del original, etapas intermedias de la ampliación por etapas} \\
-M_{\mathrm{fixed}} &= M_{\mathrm{other}} + M_{\mathrm{src}}^{1} + M_{\mathrm{keep}} + n_w (T + 64 + 2t)^2 (48 + 24[t > 0]) + 1.5\,W \max(4T, 1024) + 1.1\,\rho\, c\, b\, N && \text{otros originales y originales preparados, planos retenidos, teselas de workers, banda de guardado, PNG comprimido} \\
+M_{\mathrm{fixed}} &= M_{\mathrm{other}} + M_{\mathrm{src}}^{1} + M_{\mathrm{keep}} + n_w (T + 64 + 2t + 2p)^2 (48 + 24[t > 0] + 32[p > 0]) + 1.5\,W \max(4T, 1024) + 1.1\,\rho\, c\, b\, N && \text{otros originales y originales preparados, planos retenidos, teselas de workers, banda de guardado, PNG comprimido} \\
 \text{garantizado} &\iff M_{\mathrm{other}} + M_{\mathrm{src}}^{2} + M_{\mathrm{prep}} \le 0.8B \ \wedge\ 0.8B - M_{\mathrm{fixed}} \ge 4 \min\big(N, \max(4 \times 10^6, 2WT)\big)
 \end{aligned}
 ```
 
-$`c`$ es el número de canales, $`s_k`$ el factor intermedio de la ampliación por etapas, $`n_w`$ el número de workers, $`T`$ el tamaño de tesela, $`t`$ el margen de resultado de la restauración de textura (0 si está desactivada), $`W`$ el ancho del resultado y $`B`$ el presupuesto de memoria. $`M_{\mathrm{src}}^{2}`$ son todos los demás originales preparados que quedan en la caché (mientras se prepara uno nuevo quedan ambos), y $`M_{\mathrm{src}}^{1}`$ el más reciente de ellos (al meter el nuevo solo queda uno). $`b`$ son los bytes por canal (1 en 8 bits, 2 en 16 bits) y $`\rho`$ la tasa de compresión máxima del PNG guardado. Se midió con el codificador de la aplicación ampliando las 47 imágenes de `data/big` a 1.1, 1.25, 1.5, 2, 3 y 4×. Desde 2× se midieron tanto el caso con solo preajustes como el caso que además usa los valores explorados de restauración a gran escala de 「Automático」 (`AUTO_BIG`), y se toma el mayor; por debajo de 2× no se usan los valores explorados, así que solo preajustes (`research/budget/png_ratio.js`, `research/results/png_ratio.json`). Se usa el mayor valor de los dos factores medidos entre los que queda el factor del resultado (desde 4×, el valor de 4×). El factor por superficie de 1.25× equivale a 1.12× en ancho y alto, dentro del rango medido, y por debajo de 1.1× se cuenta con el tamaño sin comprimir.
+$`c`$ es el número de canales, $`s_k`$ el factor intermedio de la ampliación por etapas, $`n_w`$ el número de workers, $`T`$ el tamaño de tesela, $`t`$ el margen de resultado de la restauración de textura (0 si está desactivada), $`W`$ el ancho del resultado y $`B`$ el presupuesto de memoria. $`M_{\mathrm{src}}^{2}`$ son todos los demás originales preparados que quedan en la caché (mientras se prepara uno nuevo quedan ambos), y $`M_{\mathrm{src}}^{1}`$ el más reciente de ellos (al meter el nuevo solo queda uno). $`b`$ son los bytes por canal (1 en 8 bits, 2 en 16 bits) y $`\rho`$ la tasa de compresión máxima del PNG guardado. Se midió con el codificador de la aplicación ampliando las 47 imágenes de `data/big` a 1.1, 1.25, 1.5, 2, 3 y 4×. Desde 2× se midieron tanto el caso con solo preajustes como el caso que además usa los valores explorados de restauración a gran escala de 「Automático」 (`AUTO_BIG`), y se toma el mayor; por debajo de 2× no se usan los valores explorados, así que solo preajustes (`research/budget/png_ratio.js`, `research/results/png_ratio.json`). Se usa el mayor valor de los dos factores medidos entre los que queda el factor del resultado (desde 4×, el valor de 4×). El factor por superficie de 1.25× equivale a 1.12× en ancho y alto, dentro del rango medido, y por debajo de 1.1× se cuenta con el tamaño sin comprimir. $`p`$ es el margen de resultado de 「Percepción」 (los dos desenfoques y el mínimo/máximo del entorno; 0 en 「Precisión」). La razón de compresión también se midió en 「Percepción」 (intensidad hasta 150 %, textura desactivada y activada), y se usa el mayor valor de los dos objetivos (`research/results/png_ratio_pop.json`).
 
 | Factor | 8 bits, textura desactivada | 8 bits, textura activada | 16 bits, textura desactivada | 16 bits, textura activada |
 |---|---|---|---|---|
-| 1.1× | 0.712 | 0.767 | 0.922 | 0.929 |
-| 1.25× | 0.679 | 0.766 | 0.911 | 0.927 |
-| 1.5× | 0.650 | 0.760 | 0.894 | 0.925 |
-| 2× | 0.688 | 0.790 | 0.875 | 0.933 |
-| 3× | 0.615 | 0.751 | 0.839 | 0.931 |
+| 1.1× | 0.721 | 0.767 | 0.928 | 0.933 |
+| 1.25× | 0.686 | 0.766 | 0.913 | 0.928 |
+| 1.5× | 0.650 | 0.760 | 0.898 | 0.926 |
+| 2× | 0.688 | 0.790 | 0.876 | 0.933 |
+| 3× | 0.615 | 0.751 | 0.842 | 0.931 |
 | 4× o más | 0.562 | 0.731 | 0.817 | 0.934 |
 
 En 8 bits son valores con el tramado activado, y con textura activada se toma el mayor de 25 % y 100 %. El último término es la caché de dos filas de teselas (mínimo 4 megapíxeles) que necesita el guardado. El presupuesto de memoria $`B`$ es el 15 % de `navigator.deviceMemory` (400–1500 MB); si no existe, el 50 % del límite del heap de JS (máximo 1500 MB); y si tampoco, 600 MB. En móviles es el 12 % (máximo 400 MB; si no existe, 180 MB).
@@ -531,6 +538,25 @@ E_{\mathrm{dir}} = \frac{\sum_p m_p\, \arccos\!\big(|\hat{\mathbf g}^{U}_p \cdot
 ```
 
 $`E_{\mathrm{dir}}`$ es el error de dirección de los bordes. En los bordes fuertes del original (magnitud de Sobel de 80 o más, un salto de unos 20 niveles), se promedia, ponderado por la intensidad del borde, el ángulo en que difieren las direcciones del gradiente del resultado y del original. Cuando aparecen escalones, la dirección del gradiente se inclina hacia los ejes y el error crece. SSIM sigue la definición de Wang et al. (2004).
+
+### 4.21 Nitidez percibida
+
+En el modo 「Percepción」 se suman dos bandas a la luminancia del resultado $`Y`$ ($`\sqrt{\ell}`$ en luz lineal, $`\ell`$ con valores gamma; $`\ell`$ es la luminancia de los canales recortados entre 0 y el tope). $`L`$ es el factor, $`G_\sigma`$ una gaussiana (aproximación de tres cajas) y $`a`$ la intensidad de percepción.
+
+```math
+d_1 = Y - G_{0.5L}Y,\qquad d_2 = G_{0.5L}Y - G_{2L}Y,\qquad
+\tilde d = d\,\frac{d^2}{d^2+\tau^2}\quad(\tau = 0.004)
+```
+
+```math
+\Delta = a\Big(k_1\,\tilde d_1 + k_2\,\frac{\tilde d_2}{1+|\tilde d_2|/c_2}\Big),\qquad
+Y' = Y + \Delta\,\frac{h}{h+|\Delta|},\qquad
+h = \begin{cases}\max_{\mathcal N}Y - Y & \Delta>0\\ Y-\min_{\mathcal N}Y & \Delta\le 0\end{cases}
+```
+
+$`d_1`$ es la pendiente de los contornos cerca de la frecuencia de Nyquist del original y $`d_2`$ el contraste local a la escala de 1–4 píxeles de origen. $`\tilde d`$ es un umbral de la misma forma que la máscara de enfoque: las amplitudes pequeñas, como el ruido y las huellas de JPEG, apenas se suben. El contraste local se sube menos cuanto mayor es su amplitud ($`c_2 = 0.05`$): el contraste ya marcado queda igual y el enterrado aflora. $`\mathcal N`$ es un entorno cuadrado de radio $`\mathrm{round}(0.75L)`$ (solo dentro de la imagen) y $`h`$ el margen que queda hasta el mínimo o el máximo del entorno. $`\Delta\,h/(h+|\Delta|)`$ solo se acerca suavemente a ese margen sin cruzarlo, así que no aparecen nuevos extremos (halos), y como los valores no se pegan al límite, las superficies no se apelmazan (no hay posterización). Una primera versión recortaba exactamente al rango del entorno; las superficies se apelmazaban y parecía una pintura al óleo, por lo que se cambió. La nueva luminancia se aplica como una razón $`s = Y'/Y`$ ($`s^2`$ en luz lineal) multiplicada por igual en los tres canales de color premultiplicados, de modo que se conservan el tono, el gris y el alfa; al aclarar, la razón se reduce para que el canal mayor no supere el tope (el mismo tratamiento que la restauración de textura).
+
+$`k_1 = 0.5`$ y $`k_2 = 1.5`$ se eligieron con las imágenes de exploración. Se midieron las 16 combinaciones $`k_1 \in \{0.5, 1, 2, 3\}`$ × $`k_2 \in \{0, 0.5, 1, 1.5\}`$ en 22 imágenes × 3 condiciones (4× limpia, 4× degradada, 8× degradada; 66 casos), comparando la mediana del error logarítmico $`|\ln A| + |\ln C|`$ de la pendiente de contorno $`A`$ y el contraste local $`C`$ frente a la referencia. $`A`$ es la razón de pendientes medidas en los contornos de la referencia (10 % de mayor pendiente) tras desenfocar ambas con $`\sigma = 0.5L`$; $`C`$ es la razón de RMS de la banda $`G_{0.5L}-G_{2L}`$. Las 16 tuvieron un error menor que 「Precisión」 (0.418), entre 0.343 y 0.410; de ellas se eligió la que menos halo y ruido en zonas planas añade (error 0.357, halo +0.20 niveles, ruido en zonas planas ×1.14, SSIM +0.004). Los resultados están en `research/results/pop_grid.json`.
 
 ---
 
@@ -681,7 +707,7 @@ Los cuellos de botella que quedan son la interpolación DCCI (por canal), la cor
 
 Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Salvo el elemento de alfa en la ampliación por etapas, son iguales que en v1.0.0. Estas son las demás pruebas.
 
-| Prueba | Contenido | v1.1.1 |
+| Prueba | Contenido | v1.2.0 |
 |---|---|---|
 | `e2e_presets.js` | Procesamiento con 8 preajustes + guardado en 8 y 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % respecto a los 43,446 de v1.0.0 por el tramado) |
 | `engine_regression.js` | Salida de 16 bits y estadísticas de 134 combinaciones contrastadas con la versión de referencia | 134/134 idénticas byte a byte |
@@ -694,6 +720,7 @@ Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Sal
 | `gamut_sniff.js` | Detección de gama amplia: 5 casos de colr de la imagen principal en AVIF, 4 de orden de los chunks de color en PNG, 5 de metadatos o cajas de más de 2 MB antes de la información de color (XMP extendido en JPEG, chunks de texto en PNG, mdat de AVIF antes de meta), 4 de número de primarios en cICP (no especificado, reservado, sRGB) | ✓ 18 (v1.1.0 fallaba 10) |
 | `dither_probe.js` | Indicador de bandas del tramado de 8 bits | [9.7](#97-tramado-de-8-bits) |
 | `texture_seam.js` | Con textura activada: costuras, determinismo, blanco y negro, tono de colores claros | Costura máxima 1 (igual que con textura desactivada), 0 entre dos cálculos, 0 en blanco y negro, cambio de proporción de color en rojo claro 2.9 % (14.0 % en v1.1.0) |
+| `pop_seam.js` | 「Percepción」: uniones de teselas · determinismo · escala de grises · sin halo (dentro del rango del entorno del resultado Precisión) · modo gamma · tono de colores brillantes | Unión como máximo 1 (igual que Precisión), 0 entre dos cálculos, escala de grises 0, como máximo 0.9 niveles por encima del rango del entorno (redondeo de 8 bits), cambio de razón de color del rojo brillante 2.8 % |
 | `p3_browser.js` | Conservación del color P3 en Chromium real (primarios y colores mezclados, incluida la simulación de entornos en los que se bloquean las imágenes blob: y `createImageBitmap` convierte a sRGB) | [9.9](#99-display-p3) |
 
 ### 9.2 Datos
@@ -804,6 +831,27 @@ Se mide en Chromium real (Playwright) (`tests/p3_browser.js`). Se dibujan parche
 
 El gris 127 es el valor de la propia imagen de prueba. El perfil ICC Display P3 generado por la aplicación también se comprobó con LittleCMS (Pillow ImageCms): los valores de P3 (200, 100, 50) y (60, 180, 220) convertidos a sRGB coinciden con los calculados con la matriz de primarios. Los JPEG y PNG con perfil sRGB y los archivos del conjunto de datos sin perfil se detectaron como sRGB, y las imágenes de prueba P3 y los archivos guardados por v1.1.0 como de gama amplia.
 
+### 9.10 Nitidez percibida
+
+Las 23 imágenes de validación (sin pixel art) × 3 condiciones (4× limpia, 4× degradada, 8× degradada) = 70 casos se amplían con los mismos ajustes que 「Automático」, comparando 「Precisión」 y 「Percepción」 (`research/pop/pop_probe.js`, `research/results/pop_val.json`). El error es el $`|\ln A| + |\ln C|`$ de [4.21](#421-nitidez-percibida), que cuenta por igual quedarse más romo que la referencia y pasarse de ella. El halo es la cantidad media en que el resultado supera el rango del entorno de la referencia (radio = factor) alrededor de sus contornos (a menos de 2× el factor); el ruido en zonas planas es el RMS de alta frecuencia del resultado donde la referencia es plana (30 % de menor pendiente).
+
+| Percepción 100 % | Error (Precisión → Percepción) | Mejorados | Pendiente de contorno A | Contraste local C | Halo | Ruido en zonas planas | PSNR | SSIM |
+|---|---|---|---|---|---|---|---|---|
+| Fotos, 9 casos | 0.303 → 0.226 | 6/9 | 0.849 → 0.949 | 0.967 → 1.088 | +0.16 niveles | ×1.09 | −0.22 dB | −0.0003 |
+| Pintura · ilustración · manga, 26 casos | 0.676 → 0.529 | 20/26 | 0.731 → 0.825 | 0.865 → 0.983 | +0.12 niveles | ×1.16 | −0.16 dB | +0.006 |
+| Dibujo lineal · documentos · UI · logotipos, 35 casos | 0.621 → 0.559 | 20/35 | 0.865 → 0.949 | 0.982 → 1.078 | +0.52 niveles | ×0.95 | −0.06 dB | +0.012 |
+| Total, 70 casos | 0.600 → 0.505 | 46/70 | 0.813 → 0.903 | 0.937 → 1.044 | +0.33 niveles | ×1.05 | −0.12 dB | +0.008 |
+
+| Intensidad (total, 70 casos) | Error | Mejorados | Halo | Ruido en zonas planas | PSNR | SSIM |
+|---|---|---|---|---|---|---|
+| 50 % | 0.526 | 49/70 | +0.22 niveles | ×1.00 | −0.06 dB | +0.006 |
+| 100 % | 0.505 | 46/70 | +0.33 niveles | ×1.05 | −0.12 dB | +0.008 |
+| 150 % | 0.497 | 46/70 | +0.40 niveles | ×1.09 | −0.17 dB | +0.008 |
+
+La pendiente de los contornos y el contraste local suben hacia la referencia, mientras que el halo y el ruido en zonas planas apenas aumentan. Las fotos y las imágenes mejoran en dos tercios de los casos o más, pero el dibujo lineal, los documentos, la UI y los logotipos en 20/35, poco más de la mitad: sus contornos ya son pronunciados y el contraste local se pasa con facilidad de la referencia. Las imágenes comparativas están en `research/results/pop_samples/` (de izquierda a derecha: referencia · Precisión · Percepción 50 % · 100 % · 150 %; 4× degradada, y una referencia de 500 px reducida a la mitad y ampliada 2×).
+
+Al principio, 「Percepción」 añadía también un grano fino (restauración de textura, 25 % con intensidad 100 %). La medida de textura mejoraba (razón de energía de alta frecuencia R 0.13 → 0.30), pero el ruido en zonas planas se multiplicaba por 4.0 y el SSIM bajaba 0.044 (`pop_val_grain.json`), con puntos visibles en las superficies lisas. Por eso 「Percepción」 sube solo los contornos y el contraste local, y el grano fino se elige aparte con el control 「Restauración de textura」.
+
 ---
 
 ## 10. Puntos fuertes
@@ -836,6 +884,8 @@ El gris 127 es el valor de la propia imagen de prueba. El perfil ICC Display P3 
 
 **La restauración de textura es grano.** Ajusta la cantidad de textura, pero la posición y la forma son ruido inventado, así que al subir la intensidad parece ruido. Al 100 %, en pintura se desborda mucho. En ilustración el efecto es pequeño, y en gráficos planos solo mejora aproximadamente la mitad con cualquier intensidad. Solo se recomienda a baja intensidad en fotos y pintura ([9.8](#98-restauración-de-textura)).
 
+**「Percepción」 no añade información.** Vuelve a dibujar de forma más visible los contornos y el contraste que el original contiene, sin crear detalle que no tenía. En imágenes de contornos ya pronunciados, como dibujo lineal, documentos, UI y logotipos, mejora poco más de la mitad de los casos (20/35). Un resultado borroso, como el de un original diminuto muy ampliado, sigue borroso con 「Percepción」 ([9.10](#910-nitidez-percibida)).
+
 **Logotipo y cómic solo con entradas JPEG.** Al volver a medir las entradas limpias no superaron la regla de adopción, así que con entradas limpias como PNG no se usan los valores explorados de restauración a gran escala. Una imagen que originalmente era JPEG y se volvió a guardar como PNG se considera entrada limpia aunque tenga artefactos JPEG.
 
 **Ilustración no adoptada.** Los resultados son contradictorios según las condiciones, así que no se usan los valores explorados de restauración a gran escala. Queda margen para revisarla con otras degradaciones (ruido fuerte, otros desenfoques, originales nítidos de partida) y con imágenes más grandes.
@@ -855,6 +905,11 @@ El gris 127 es el valor de la propia imagen de prueba. El perfil ICC Display P3 
 ---
 
 ## 12. Registro de cambios
+
+### v1.2.0 — Dos objetivos: precisión y percepción
+
+- **「Objetivo: Precisión · Percepción」.** Por defecto, 「Precisión」 amplía lo más cerca del original como antes (la salida es idéntica byte a byte a la v1.1.1). 「Percepción」 lleva la pendiente de los contornos y el contraste local al nivel de la referencia para verse más nítido. Nunca supera el rango de brillo del entorno, así que no aparecen bordes blancos. En 70 casos de validación, el error frente a la referencia bajó de 0.600 a 0.505, con ruido en zonas planas ×1.05 y PSNR −0.12 dB ([2.9](#29-precisión-y-percepción-son-objetivos-distintos), [9.10](#910-nitidez-percibida)).
+- Intensidad de percepción 25–150 %; los preajustes y 「Automático」 no cambian esta elección. El factor automático cuenta el margen, la memoria y la razón de compresión del PNG guardado en 「Percepción」.
 
 ### v1.1.1 — Corrección de los problemas detectados en la revisión de código
 
