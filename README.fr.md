@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <b>Français</b> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.2.1`
+# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.2.2`
 
 Upscaly est un outil d'agrandissement d'images qui vise l'absence de perte. Il tient dans un seul fichier (`upscaler.html`) et effectue tous les calculs dans le navigateur.
 Rien à installer, rien à téléverser. Vos images ne quittent jamais votre appareil.
 
-Version actuelle **v1.2.1** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Version actuelle **v1.2.2** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Sommaire**
 
@@ -210,7 +210,7 @@ Les requêtes automatiques sont numérotées, de sorte qu'une mesure antérieure
 
 ### 3.7 Facteur automatique
 
-Le plus grand facteur entre 3 et 8× dont le rendu est **garanti** est choisi. Garanti signifie que la mémoire maximale sur l'ensemble du traitement reste sous 80 % du budget mémoire, que la marge restante dépasse le cache minimal et que le résultat respecte la limite d'enregistrement. Sont aussi comptés le PNG compressé qui s'accumule en mémoire pendant l'enregistrement (taux de compression maximal mesuré sur 47 images du jeu de données, plus une marge de 10 %) et les originaux préparés des images précédentes restés dans le cache. Comme les réglages choisis par 「Auto」 (préréglage, valeurs de la recherche de restauration poussée, agrandissement par étapes) diffèrent selon le facteur, le budget diffère aussi ; 「Auto」 applique donc réellement, en partant des grands facteurs, les réglages de chaque facteur et choisit le premier facteur garanti. Lorsque l'agrandissement par étapes est déterminé par mesure sur la photo, seules les méthodes qui restent dans la garantie sont retenues. Une fois le choix fait, la limite du cache de tuiles est effectivement abaissée à cette valeur. Si même 3× n'est pas garanti, on se replie sur le plus grand facteur garanti inférieur.
+Le plus grand facteur entre 3 et 8× dont le rendu est **garanti** est choisi. Appuyer sur 「Auto」 dans la ligne du facteur déplace aussitôt le facteur vers le plus grand garanti avec les réglages actuels. Garanti signifie que la mémoire maximale sur l'ensemble du traitement reste sous 80 % du budget mémoire, que la marge restante dépasse le cache minimal et que le résultat respecte la limite d'enregistrement. Sont aussi comptés le PNG compressé qui s'accumule en mémoire pendant l'enregistrement (taux de compression maximal mesuré sur 47 images du jeu de données, plus une marge de 10 %) et les originaux préparés des images précédentes restés dans le cache. Comme les réglages choisis par 「Auto」 (préréglage, valeurs de la recherche de restauration poussée, agrandissement par étapes) diffèrent selon le facteur, le budget diffère aussi ; 「Auto」 applique donc réellement, en partant des grands facteurs, les réglages de chaque facteur et choisit le premier facteur garanti. Lorsque l'agrandissement par étapes est déterminé par mesure sur la photo, seules les méthodes qui restent dans la garantie sont retenues. Une fois le choix fait, la limite du cache de tuiles est effectivement abaissée à cette valeur. Si même 3× n'est pas garanti, on se replie sur le plus grand facteur garanti inférieur.
 
 ### 3.8 Enregistrement
 
@@ -707,7 +707,7 @@ Les goulots d'étranglement restants sont l'interpolation DCCI (par canal), la c
 
 Les invariants sont mesurés avec le tramage 8 bits activé (par défaut). Hormis l'élément alpha de l'agrandissement par étapes, ils sont identiques à ceux de la v1.0.0. Voici les autres tests.
 
-| Test | Contenu | v1.2.1 |
+| Test | Contenu | v1.2.2 |
 |---|---|---|
 | `e2e_presets.js` | Traitement de 8 préréglages + enregistrement 8 et 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % par rapport aux 43,446 de la v1.0.0 à cause du tramage) |
 | `engine_regression.js` | Comparaison des sorties 16 bits et statistiques de 134 combinaisons avec la version de référence | 134/134 identiques à l'octet |
@@ -905,6 +905,10 @@ Au départ, 「Perception」 ajoutait aussi un grain fin (restauration de textur
 ---
 
 ## 12. Historique des versions
+
+### v1.2.2 — Le facteur 「Auto」 se déplace aussitôt
+
+- Appuyer sur 「Auto」 dans la ligne du facteur déplace maintenant aussitôt le facteur vers le plus grand garanti avec les réglages actuels (auparavant, il ne se déplaçait qu'avec le bouton 「Auto」). Le bouton 「Auto」 cherche toujours à nouveau avec les réglages propres à chaque facteur.
 
 ### v1.2.1 — Nom et affichage de la version
 

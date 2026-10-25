@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Upscaly: 무손실 지향 확대기 v1.2.1</title>
+<title>Upscaly: 무손실 지향 확대기 v1.2.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;600&display=swap" rel="stylesheet">
@@ -237,7 +237,7 @@ dialog .detail.warn{color:var(--warn)}
   .bar .btn{padding:0 9px}
   .brand{padding-right:10px}
 }
-@media (max-width:720px){.brand .sub{display:none}}   /* 좁은 화면: 「Upscaly v1.2.1」만 (버튼이 다음 줄로 밀리지 않게) */
+@media (max-width:720px){.brand .sub{display:none}}   /* 좁은 화면: 「Upscaly v1.2.2」만 (버튼이 다음 줄로 밀리지 않게) */
 @media (max-width:420px){
   .bar{gap:8px}
   .brand{gap:5px}
@@ -264,7 +264,7 @@ dialog .detail.warn{color:var(--warn)}
         <rect class="b" x="7.6" y="7.6" width="11.15" height="11.15" rx="1.75"/>
       </svg>
       <span class="name">Upscaly<span class="sub">: 무손실 지향 확대기</span></span>
-      <span class="ver num" title="버전">v1.2.1</span>
+      <span class="ver num" title="버전">v1.2.2</span>
     </div>
     <div class="readout num" id="readout">이미지를 열어 시작하세요.</div>
     <div class="acts">
@@ -4913,7 +4913,12 @@ SCALES.forEach((s) => {
   const b = document.createElement("button");
   b.className = "chip"; b.textContent = "자동"; b.dataset.auto = "1";
   b.title = "「자동」 버튼을 누르면 3~8× 중 메모리 여유와 저장 상한으로 렌더링이 보장되는 가장 큰 배율을 고릅니다 (3×도 안 되면 그보다 작게)";
-  b.addEventListener("click", () => { st.scaleAuto = true; syncScaleChips(); updateSizeNote(); save(); });
+  b.addEventListener("click", () => {
+    st.scaleAuto = true;
+    const g = pickAutoScale();                               // 누르는 즉시 지금 설정으로 보장되는 최대 배율로 옮긴다 (「자동」 버튼은 배율마다 그 설정으로 다시 찾는다)
+    if (g) { st.scale = g.v; TC_AUTO_CAP = Math.max(4e6, g.capPx); tcTrim(); }
+    syncScaleChips(); updateSizeNote(); save();
+  });
   scaleWrap.appendChild(b);
 }
 function syncScaleChips() {
@@ -5506,7 +5511,7 @@ function updateSizeNote() {
   if (st.scaleAuto) {                                        // 배율 자동: 보장되는 최대 배율을 미리 보여 준다
     const g = pickAutoScale();
     msg = (g ? "배율 자동(3~8×) — " + (g.below ? "3× 이상은 보장되지 않아 " : "보장되는 최대 ") + (st.mode === "area" ? "넓이 " : "") + scaleLabel(g.v) +
-               (g.v !== st.scale ? ", 「자동」을 누르면 이 배율로 맞춥니다" : "") + " · 캐시 " + Math.round(g.cacheMB) + " MB 포함 예상 최대 " + Math.round(g.fixedMB + g.cacheMB) + " / " + MEM_BUDGET + " MB"
+               (g.v !== st.scale ? ", 배율의 「자동」을 다시 누르면 이 배율로 옮깁니다" : "") + " · 캐시 " + Math.round(g.cacheMB) + " MB 포함 예상 최대 " + Math.round(g.fixedMB + g.cacheMB) + " / " + MEM_BUDGET + " MB"
              : "배율 자동 — 렌더링이 보장되는 배율이 없습니다") + " │ 지금: " + msg;
   }
   el.textContent = msg;

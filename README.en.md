@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <b>English</b> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.2.1`
+# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.2.2`
 
 An image upscaler that aims to be lossless. It runs as a single file (`upscaler.html`) and does all of its computation inside the browser.
 There is nothing to install and nothing to upload. Your images never leave your device.
 
-Current version **v1.2.1** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
+Current version **v1.2.2** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
 
 **Contents**
 
@@ -210,7 +210,7 @@ Auto requests are numbered, so an earlier measurement that finishes late is not 
 
 ### 3.7 Auto scale
 
-Among 3–8×, it picks the largest scale whose rendering is **guaranteed**. Guaranteed means the peak memory over the whole process is within 80% of the memory budget, the remaining share is larger than the minimum cache, and the result is within the save limit. It also counts the compressed PNG that accumulates in memory while saving (maximum compression ratio measured on 47 images in the data, plus a 10% margin) and the prepared originals of previous images still in the cache. Since the settings 「Auto」 picks (preset · large-scale restoration search values · staged upscaling) differ by scale, the budget differs too, so 「Auto」 actually applies each scale's settings starting from the largest scale and picks the first guaranteed scale. When staged upscaling is decided by measuring this photo, only methods within the guarantee are chosen. Once chosen, the tile cache limit is actually lowered to that value. If even 3× is not guaranteed, it falls back to the largest guaranteed scale below that.
+Among 3–8×, it picks the largest scale whose rendering is **guaranteed**. Pressing 「Auto」 in the scale row moves the scale at once to the largest one guaranteed with the current settings. Guaranteed means the peak memory over the whole process is within 80% of the memory budget, the remaining share is larger than the minimum cache, and the result is within the save limit. It also counts the compressed PNG that accumulates in memory while saving (maximum compression ratio measured on 47 images in the data, plus a 10% margin) and the prepared originals of previous images still in the cache. Since the settings 「Auto」 picks (preset · large-scale restoration search values · staged upscaling) differ by scale, the budget differs too, so 「Auto」 actually applies each scale's settings starting from the largest scale and picks the first guaranteed scale. When staged upscaling is decided by measuring this photo, only methods within the guarantee are chosen. Once chosen, the tile cache limit is actually lowered to that value. If even 3× is not guaranteed, it falls back to the largest guaranteed scale below that.
 
 ### 3.8 Saving
 
@@ -707,7 +707,7 @@ The remaining bottlenecks are DCCI interpolation (per channel), consistency corr
 
 The invariants are measured with 8-bit dithering on (default). Apart from the staged-upscaling alpha item, they are the same as v1.0.0. Other tests:
 
-| Test | Contents | v1.2.1 |
+| Test | Contents | v1.2.2 |
 |---|---|---|
 | `e2e_presets.js` | Processing 8 presets + 8 · 16-bit saving | ✓ 8, 45,711 · 239,731 bytes (8-bit is +5% from v1.0.0's 43,446 due to dither) |
 | `engine_regression.js` | 16-bit output · statistics of 134 combinations compared against the baseline | 134/134 byte-identical |
@@ -905,6 +905,10 @@ At first, 「Perceptual」 also added fine grain (texture revival, 25% at streng
 ---
 
 ## 12. Changelog
+
+### v1.2.2 — Auto scale moves at once
+
+- Pressing 「Auto」 in the scale row now moves the scale right away to the largest one guaranteed with the current settings (before, it moved only when the 「Auto」 button was pressed). The 「Auto」 button still searches again with each scale's own settings.
 
 ### v1.2.1 — Name and version display
 

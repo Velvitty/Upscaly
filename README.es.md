@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <b>Español</b></p>
 
-# 🔍 Upscaly: ampliador de imágenes que aspira a no perder información (무손실 지향 확대기) `v1.2.1`
+# 🔍 Upscaly: ampliador de imágenes que aspira a no perder información (무손실 지향 확대기) `v1.2.2`
 
 Upscaly es una herramienta de ampliación de imágenes que aspira a no perder información. Funciona con un solo archivo (`upscaler.html`) y realiza todos los cálculos dentro del navegador.
 No hay nada que instalar ni ningún sitio al que subir nada. La imagen nunca sale del dispositivo.
 
-Versión actual **v1.2.1** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Versión actual **v1.2.2** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Índice**
 
@@ -210,7 +210,7 @@ Las peticiones automáticas llevan un número, de modo que una medición anterio
 
 ### 3.7 Factor automático
 
-Elige, entre 3× y 8×, el mayor factor cuyo renderizado está **garantizado**. Garantizado significa que la memoria máxima de todo el proceso está dentro del 80 % del presupuesto de memoria, que lo que sobra es mayor que la caché mínima y que el resultado está dentro del límite de guardado. También se cuentan el PNG comprimido que se acumula en memoria durante el guardado (tasa de compresión máxima medida en 47 imágenes del conjunto de datos, con un margen del 10 %) y el original preparado de una imagen anterior que siga en la caché. Como los ajustes que elige 「Automático」 (preajuste, valores explorados de restauración a gran escala, ampliación por etapas) cambian con el factor, y con ellos el presupuesto, 「Automático」 aplica de verdad, empezando por los factores grandes, los ajustes de cada factor y elige el primero que queda garantizado. Al decidir la ampliación por etapas midiéndola en esta foto, también elige solo métodos dentro de la garantía. Una vez elegido, el límite de la caché de teselas se reduce realmente a ese valor. Si ni siquiera 3× está garantizado, se recurre al mayor factor garantizado por debajo de él.
+Elige, entre 3× y 8×, el mayor factor cuyo renderizado está **garantizado**. Al pulsar 「Automático」 en la fila del factor, el factor pasa de inmediato al mayor garantizado con los ajustes actuales. Garantizado significa que la memoria máxima de todo el proceso está dentro del 80 % del presupuesto de memoria, que lo que sobra es mayor que la caché mínima y que el resultado está dentro del límite de guardado. También se cuentan el PNG comprimido que se acumula en memoria durante el guardado (tasa de compresión máxima medida en 47 imágenes del conjunto de datos, con un margen del 10 %) y el original preparado de una imagen anterior que siga en la caché. Como los ajustes que elige 「Automático」 (preajuste, valores explorados de restauración a gran escala, ampliación por etapas) cambian con el factor, y con ellos el presupuesto, 「Automático」 aplica de verdad, empezando por los factores grandes, los ajustes de cada factor y elige el primero que queda garantizado. Al decidir la ampliación por etapas midiéndola en esta foto, también elige solo métodos dentro de la garantía. Una vez elegido, el límite de la caché de teselas se reduce realmente a ese valor. Si ni siquiera 3× está garantizado, se recurre al mayor factor garantizado por debajo de él.
 
 ### 3.8 Guardado
 
@@ -707,7 +707,7 @@ Los cuellos de botella que quedan son la interpolación DCCI (por canal), la cor
 
 Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Salvo el elemento de alfa en la ampliación por etapas, son iguales que en v1.0.0. Estas son las demás pruebas.
 
-| Prueba | Contenido | v1.2.1 |
+| Prueba | Contenido | v1.2.2 |
 |---|---|---|
 | `e2e_presets.js` | Procesamiento con 8 preajustes + guardado en 8 y 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % respecto a los 43,446 de v1.0.0 por el tramado) |
 | `engine_regression.js` | Salida de 16 bits y estadísticas de 134 combinaciones contrastadas con la versión de referencia | 134/134 idénticas byte a byte |
@@ -905,6 +905,10 @@ Al principio, 「Percepción」 añadía también un grano fino (restauración d
 ---
 
 ## 12. Registro de cambios
+
+### v1.2.2 — El factor 「Automático」 cambia al instante
+
+- Al pulsar 「Automático」 en la fila del factor, el factor pasa ahora de inmediato al mayor garantizado con los ajustes actuales (antes solo cambiaba al pulsar el botón 「Automático」). El botón 「Automático」 sigue buscando de nuevo con los ajustes propios de cada factor.
 
 ### v1.2.1 — Nombre y versión visibles
 
