@@ -906,10 +906,11 @@ Al principio, 「Percepción」 añadía también un grano fino (restauración d
 
 ## 12. Registro de cambios
 
-### v1.2.2 — El factor 「Automático」 cambia al instante
+### v1.2.2 — Ajustes de 「Automático」 y los botones
 
 - Al pulsar 「Automático」 en la fila del factor, el factor pasa ahora de inmediato al mayor garantizado con los ajustes actuales (antes solo cambiaba al pulsar el botón 「Automático」). El botón 「Automático」 sigue buscando de nuevo con los ajustes propios de cada factor.
 - En 「Objetivo」, el marcador detrás de 「Precisión」 y 「Percepción」 se desliza ahora hacia la opción pulsada como un resorte (se pasa una vez y se detiene en unos 0,5 s; con movimiento reducido se mueve al instante). Al pulsar otro factor se desactiva 「Automático」.
+- Al pulsar 「Automático」, un naranja más oscuro llena ahora el botón de izquierda a derecha para mostrar el avance. Llega al 100 % 0,7 s después de terminar el análisis y las mediciones, y **Ejecutar ampliación** queda desactivado hasta entonces (para que no se pulse justo al terminar). Si después de 「Automático」 eliges tú un preajuste, se avisa de que 「Automático」 se ha desactivado y la medición que siguiera en curso se detiene para no sobrescribir esa elección.
 
 ### v1.2.1 — Nombre y versión visibles
 

@@ -906,10 +906,11 @@ Au départ, 「Perception」 ajoutait aussi un grain fin (restauration de textur
 
 ## 12. Historique des versions
 
-### v1.2.2 — Le facteur 「Auto」 se déplace aussitôt
+### v1.2.2 — Retouches de 「Auto」 et des boutons
 
 - Appuyer sur 「Auto」 dans la ligne du facteur déplace maintenant aussitôt le facteur vers le plus grand garanti avec les réglages actuels (auparavant, il ne se déplaçait qu'avec le bouton 「Auto」). Le bouton 「Auto」 cherche toujours à nouveau avec les réglages propres à chaque facteur.
 - Dans 「Objectif」, le repère derrière 「Précision」 et 「Perception」 glisse désormais vers l'option choisie comme un ressort (il dépasse une fois puis se stabilise en environ 0,5 s ; avec le réglage de mouvement réduit, il se déplace aussitôt). Appuyer sur un autre facteur désactive 「Auto」.
+- Appuyer sur 「Auto」 affiche désormais la progression par un orange plus foncé qui remplit le bouton de gauche à droite. Il atteint 100 % 0,7 s après la fin de l'analyse et des mesures, et **Lancer l'agrandissement** reste désactivé jusque-là (pour ne pas être pressé à l'instant où elles finissent). Choisir soi-même un préréglage après 「Auto」 indique désormais que 「Auto」 a été désactivé, et une mesure encore en cours s'arrête pour ne pas écraser ce choix.
 
 ### v1.2.1 — Nom et affichage de la version
 
