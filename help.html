@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upscaly 도움말</title>
+<meta name="description" content="Upscaly: 무손실 지향 확대기 v1.3.0 — 도움말">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600&family=Noto+Sans+Math&display=swap" rel="stylesheet">
+<!-- docs/build_docs.py가 docs/help.md에서 만든 파일 — 직접 고치지 말고 원본을 고친 뒤 다시 만드세요 -->
+<style>
+:root{
+  --bg:#efeee9; --panel:#f6f5f2; --paper:#fbfaf7; --sunk:#eae8e3; --line:#d8d4cc;
+  --text:#1b1c1e; --dim:#5f6166; --faint:#8a8c91; --link:#8a5a00;
+  --accent:#e0a41c; --accent-ink:#1b1c1e; --tip:#fff6dd; --tip-line:#e8c766;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#18191c; --panel:#212226; --paper:#1d1e22; --sunk:#26282d; --line:#34363c;
+    --text:#e9e9ec; --dim:#a4a7ad; --faint:#787b83; --link:#f2c14e;
+    --accent:#f2c14e; --accent-ink:#1b1c1e; --tip:#2a2619; --tip-line:#6b5a25;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:72px}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  font-size:15.5px; line-height:1.75; -webkit-font-smoothing:antialiased; word-break:keep-all; overflow-wrap:anywhere;
+}
+a{color:var(--link); text-underline-offset:2px}
+.top{
+  position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:9px 16px; background:var(--panel); border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:9px; font-weight:600; font-size:14.5px; color:inherit; text-decoration:none; white-space:nowrap}
+.brand:hover .nm{text-decoration:underline; text-underline-offset:3px}
+.mark{width:18px; height:18px; flex:none}
+.mark .a{fill:var(--accent)}
+.mark .b{fill:none; stroke:currentColor; stroke-width:1.35; opacity:.5}
+.ver{font-size:11px; font-weight:400; color:var(--faint); border:1px solid var(--line); border-radius:4px; padding:0 5px; line-height:17px}
+.tabs{
+  position:relative; isolation:isolate; display:grid; grid-template-columns:repeat(3,1fr); margin-left:auto;
+  padding:2px; background:var(--sunk); border:1px solid var(--line); border-radius:7px; min-width:330px;
+}
+.tabs a{
+  position:relative; z-index:1; display:block; text-align:center; padding:5px 14px; border-radius:5px;
+  font-size:13.5px; color:var(--dim); text-decoration:none; white-space:nowrap; transition:color .15s;
+}
+.tabs a:hover{color:var(--text)}
+.tabs a[aria-current="page"]{color:var(--accent-ink); font-weight:600}
+.tabs .thumb{position:absolute; left:0; top:2px; bottom:2px; width:0; border-radius:5px; background:var(--accent); z-index:-1; transform-origin:0 50%; will-change:transform}
+.layout{display:grid; grid-template-columns:230px minmax(0,1fr); gap:44px; max-width:1180px; margin:0 auto; padding:30px 24px 90px}
+.toc{position:sticky; top:72px; align-self:start; max-height:calc(100vh - 92px); overflow:auto; font-size:13px; line-height:1.5}
+.toc summary{font-weight:600; font-size:12.5px; color:var(--dim); cursor:pointer; list-style:none; padding:2px 0 8px}
+.toc summary::-webkit-details-marker{display:none}
+.toc ol{list-style:none; margin:0; padding:0}
+.toc li a{display:block; padding:3px 0 3px 10px; border-left:2px solid transparent; color:var(--dim); text-decoration:none}
+.toc li.l3 a{padding-left:22px; font-size:12.5px; color:var(--faint)}
+.toc li a:hover{color:var(--text)}
+.toc li a.on{color:var(--text); border-left-color:var(--accent); font-weight:600}
+.doc{min-width:0; max-width:780px; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:34px 44px 44px}
+.doc h1{font-size:27px; line-height:1.35; margin:0 0 .4em; letter-spacing:-.01em}
+.doc h2{font-size:21px; line-height:1.4; margin:2.2em 0 .6em; padding-top:.9em; border-top:1px solid var(--line)}
+.doc h1 + h2, .doc > h2:first-child{border-top:0; padding-top:0}
+.doc h3{font-size:16.5px; margin:1.8em 0 .4em}
+.doc h4{font-size:15px; margin:1.4em 0 .3em}
+.doc p{margin:.7em 0}
+.doc ul, .doc ol{padding-left:1.5em; margin:.6em 0}
+.doc li{margin:.25em 0}
+.doc li > p{margin:.3em 0}
+.doc hr{border:0; border-top:1px solid var(--line); margin:2em 0}
+.doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.86em; background:var(--sunk); border:1px solid var(--line); border-radius:4px; padding:.05em .35em}
+.doc pre{background:var(--sunk); border:1px solid var(--line); border-radius:7px; padding:12px 14px; overflow:auto; font-size:12.5px; line-height:1.55}
+.doc pre code{background:none; border:0; padding:0; font-size:inherit}
+.doc kbd{font-family:inherit; font-size:.85em; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:.05em .4em; background:var(--panel)}
+.doc blockquote{margin:1em 0; padding:.5em 1em; border-left:3px solid var(--line); color:var(--dim)}
+.doc blockquote.tip{background:var(--tip); border-left-color:var(--tip-line); border-radius:0 7px 7px 0; color:var(--text)}
+.doc blockquote p{margin:.4em 0}
+.tbl{overflow-x:auto; margin:1em 0}
+.doc table{border-collapse:collapse; font-size:13.5px; line-height:1.6; min-width:100%}
+.doc th, .doc td{border-bottom:1px solid var(--line); padding:7px 10px; vertical-align:top; text-align:left}
+.doc th{font-weight:600; background:var(--sunk)}
+.mblock{overflow-x:auto; overflow-y:hidden; margin:.9em 0; padding:.3em 0}
+math{font-family:"Noto Sans Math","STIX Two Math","Cambria Math","Latin Modern Math",math; font-size:1.04em}
+math[display="block"]{margin:0}
+.lead{font-size:16.5px; color:var(--dim)}
+.foot{max-width:1180px; margin:0 auto; padding:0 24px 40px; font-size:12.5px; color:var(--faint)}
+@media (max-width:1000px){
+  .layout{grid-template-columns:minmax(0,1fr); gap:0; padding:18px 16px 70px}
+  .toc{position:static; max-height:none; margin-bottom:14px; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 14px}
+  .toc summary{padding:0}
+  .toc[open] summary{padding-bottom:8px}
+  .doc{padding:22px 18px 30px}
+}
+@media (max-width:640px){
+  .top{gap:8px 12px; padding:8px 12px}
+  .tabs{order:3; flex-basis:100%; min-width:0; margin-left:0}
+  .doc h1{font-size:23px}
+  .doc h2{font-size:19px}
+  body{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="upscaler.html" title="Upscaly 앱 열기"><svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><rect class="a" x="1.25" y="1.25" width="7.5" height="7.5" rx="1.25"/><rect class="b" x="7.6" y="7.6" width="11.15" height="11.15" rx="1.75"/></svg><span class="nm">Upscaly</span><span class="ver">v1.3.0</span></a>
+  <nav class="tabs" aria-label="문서"><span class="thumb" aria-hidden="true"></span><a href="help.html" aria-current="page">도움말</a><a href="instruction.html?from=0">설명서</a><a href="paper.html?from=0">개발자 논고</a></nav>
+</header>
+<div class="layout">
+<details class="toc"><summary>목차</summary><nav aria-label="목차"><ol><li class="l2"><a href="#이-도구는-무엇인가요">이 도구는 무엇인가요</a></li><li class="l2"><a href="#가장-쉬운-사용법">가장 쉬운 사용법</a></li><li class="l2"><a href="#화면-보는-법">화면 보는 법</a></li><li class="l2"><a href="#정확도와-체감">「정확도」와 「체감」</a></li><li class="l2"><a href="#배율-고르기">배율 고르기</a></li><li class="l2"><a href="#여러-장을-한-번에">여러 장을 한 번에</a></li><li class="l2"><a href="#이럴-땐-이렇게">이럴 땐 이렇게</a></li><li class="l3"><a href="#그림이-인터넷으로-올라가나요">그림이 인터넷으로 올라가나요?</a></li><li class="l3"><a href="#결과가-흐려-보여요">결과가 흐려 보여요</a></li><li class="l3"><a href="#윤곽이-계단처럼-보여요">윤곽이 계단처럼 보여요</a></li><li class="l3"><a href="#피부가-밀랍처럼-너무-매끈해요">피부가 밀랍처럼 너무 매끈해요</a></li><li class="l3"><a href="#윤곽-둘레에-흰-테두리가-보여요">윤곽 둘레에 흰 테두리가 보여요</a></li><li class="l3"><a href="#너무-오래-걸려요">너무 오래 걸려요</a></li><li class="l3"><a href="#메모리-경고가-나오거나-처리가-멈춰요">메모리 경고가 나오거나 처리가 멈춰요</a></li><li class="l3"><a href="#확대-실행이-눌리지-않아요">「확대 실행」이 눌리지 않아요</a></li><li class="l3"><a href="#자동이-풀렸습니다라는-안내가-나와요">「「자동」이 풀렸습니다」라는 안내가 나와요</a></li><li class="l3"><a href="#색이-달라-보여요">색이 달라 보여요</a></li><li class="l3"><a href="#하늘이나-그라데이션에-띠가-보여요">하늘이나 그라데이션에 띠가 보여요</a></li><li class="l3"><a href="#투명한-배경은-어떻게-되나요">투명한 배경은 어떻게 되나요?</a></li><li class="l3"><a href="#픽셀-아트는요">픽셀 아트는요?</a></li><li class="l3"><a href="#다시-열었더니-설정이-그대로예요">다시 열었더니 설정이 그대로예요</a></li><li class="l2"><a href="#더-알고-싶다면">더 알고 싶다면</a></li></ol></nav></details>
+<main class="doc">
+<h1 id="도움말">도움말</h1>
+<p>Upscaly는 작은 그림을 크게 키워 주는 도구입니다. 이 쪽은 처음 쓰는 분을 위한 쉬운 안내입니다. 버튼 하나하나가 궁금하면 <a href="instruction.html">설명서</a>, 원리와 수식이 궁금하면 <a href="paper.html">개발자 논고</a>를 보세요.</p>
+<h2 id="이-도구는-무엇인가요">이 도구는 무엇인가요</h2>
+<ul><li><strong>작은 그림을 크게 키웁니다.</strong> 보통 그림을 키우면 흐려지거나, 윤곽이 계단처럼 보이거나, 윤곽 둘레에 흰 테두리가 생깁니다. Upscaly는 이런 흠을 줄이면서 키웁니다.</li><li><strong>내 컴퓨터 안에서만 일합니다.</strong> 그림을 인터넷에 올리지 않습니다. 설치할 것도 없고, 인터넷이 끊겨도 됩니다.</li><li><strong>어떤 그림이든 됩니다.</strong> 사진, 일러스트, 만화, 문서, 로고, 픽셀 아트를 각각 알맞은 방식으로 키웁니다.</li><li><strong>없는 것을 지어내지 않습니다.</strong> 원본에 남아 있는 정보를 가장 그럴듯하게 펼칩니다. 뭉개진 얼굴이나 글자를 새로 그려 넣지는 않습니다.</li></ul>
+<h2 id="가장-쉬운-사용법">가장 쉬운 사용법</h2>
+<ol><li><strong>그림을 엽니다.</strong> 위쪽의 <strong>이미지 열기</strong>를 누르거나, 그림 파일을 화면에 끌어다 놓거나, 복사한 그림을 붙여넣습니다(<kbd>Ctrl</kbd>+<kbd>V</kbd>, 맥은 <kbd>⌘</kbd>+<kbd>V</kbd>). 한 번에 20장까지 열 수 있습니다.</li><li><strong>몇 배로 키울지 고릅니다.</strong> 왼쪽 <strong>배율</strong> 칸에서 2×, 4× 같은 숫자를 누릅니다. 잘 모르겠으면 <strong>자동</strong>을 누르세요. 이 컴퓨터에서 끝까지 처리할 수 있는 가장 큰 배율로 바로 옮겨 갑니다.</li><li><strong>「자동: (권장, 추천)」을 누릅니다.</strong> 그림의 종류와 상태를 살펴 아래 설정을 모두 알아서 채웁니다. 버튼 위로 진한 주황색이 왼쪽에서 오른쪽으로 차오릅니다. <strong>끝까지 찰 때까지 기다리세요.</strong> 그동안은 「확대 실행」이 잠겨 있습니다.</li><li><strong>「확대 실행」을 누릅니다.</strong> 화면 아래에 진행 막대가 나옵니다. 끝나면 화면 왼쪽 절반에 원본(브라우저가 그냥 키운 것), 오른쪽 절반에 결과가 보입니다.</li><li><strong>「PNG 저장」을 누릅니다.</strong> 여러 장을 처리했다면 <strong>모두 저장</strong>으로 한꺼번에 저장할 수 있습니다.</li></ol>
+<blockquote class="tip"><p><strong>팁</strong> 대부분은 3번의 「자동」만 눌러도 충분합니다. 다른 칸은 건드리지 않아도 됩니다.</p></blockquote>
+<h2 id="화면-보는-법">화면 보는 법</h2>
+<ul><li><strong>옮기기·키우기:</strong> 그림을 끌어서 옮기고, 마우스 휠로 크게·작게 봅니다.</li><li><strong>맞춤</strong> (<kbd>F</kbd>): 그림 전체가 화면에 꼭 맞게 보입니다.</li><li><strong>1:1</strong> (<kbd>1</kbd>): 화면의 점 하나가 결과의 점 하나가 되게, 실제 크기로 봅니다.</li><li><strong>원본 비교</strong> (<kbd>C</kbd>): 왼쪽 원본·오른쪽 결과로 나눠 보기를 켜고 끕니다. 가운데 나눔선을 끌어서 옮길 수 있습니다.</li><li><strong>피사체</strong> (<kbd>B</kbd>): 그림의 주인공이 있는 곳을 상자로 보여 줍니다.</li><li><strong>‹ ›</strong> (<kbd>←</kbd> <kbd>→</kbd>): 여러 장을 열었을 때 이전·다음 그림으로 갑니다. <strong>✕</strong>는 지금 그림을 닫습니다.</li></ul>
+<h2 id="정확도와-체감">「정확도」와 「체감」</h2>
+<p>왼쪽 <strong>목표</strong> 칸에서 둘 중 하나를 고릅니다.</p>
+<ul><li><strong>정확도</strong> (처음 값): 원본에 가장 가깝게 키웁니다. 결과를 다시 원래 크기로 줄이면 원본과 같아지도록 맞춥니다.</li><li><strong>체감</strong>: 눈에 더 또렷하게 보이도록 키웁니다. 윤곽을 더 또렷하게 세우고, 묻혀 있던 명암을 살립니다. 흰 테두리는 생기지 않습니다. 대신 원본과의 차이는 조금 커집니다.</li></ul>
+<p>화면에서 보기 좋은 것이 중요하면 「체감」, 원본 그대로가 중요하면(자료 보관, 비교) 「정확도」를 고르세요. 「체감」을 고르면 <strong>체감 세기</strong>(25~150%)로 얼마나 세게 할지 정할 수 있습니다.</p>
+<h2 id="배율-고르기">배율 고르기</h2>
+<ul><li><strong>가로·세로 길이</strong>: 2×면 가로도 2배, 세로도 2배입니다. 그림의 넓이는 4배가 됩니다.</li><li><strong>픽셀 수(넓이)</strong>: 2×면 점의 개수가 2배입니다. 가로·세로는 각각 약 1.41배가 됩니다.</li><li><strong>자동</strong>: 이 컴퓨터의 메모리로 끝까지 처리할 수 있는 가장 큰 배율(3~8×)을 골라 줍니다. 그다음 다른 배율을 누르면 「자동」은 풀립니다.</li><li><strong>1×</strong>: 크기는 그대로 두고 잡티와 흐림만 정리합니다.</li></ul>
+<p>크게 키울수록 시간이 오래 걸립니다. 큰 사진을 8×로 키우면 몇 분 걸릴 수 있습니다.</p>
+<h2 id="여러-장을-한-번에">여러 장을 한 번에</h2>
+<ol><li>그림을 여러 장 엽니다.</li><li>한 장을 골라 설정을 맞춥니다(「자동」을 눌러도 됩니다).</li><li>왼쪽 맨 아래 <strong>이 설정을 모든 사진에 적용</strong>에 체크하고, 확인 창에서 <strong>모두 적용</strong>을 누릅니다.</li><li>차례로 처리가 끝나면 위쪽 <strong>모두 저장</strong>으로 저장합니다.</li></ol>
+<blockquote class="tip"><p><strong>주의</strong> 모든 사진에 <strong>같은 설정</strong>이 들어갑니다. 사진마다 알맞게 하려면 한 장씩 「자동」을 누르고 처리하세요.</p></blockquote>
+<h2 id="이럴-땐-이렇게">이럴 땐 이렇게</h2>
+<h3 id="그림이-인터넷으로-올라가나요">그림이 인터넷으로 올라가나요?</h3>
+<p>아니요. 모든 계산은 이 브라우저 안에서 합니다. 그림은 이 컴퓨터 밖으로 나가지 않습니다.</p>
+<h3 id="결과가-흐려-보여요">결과가 흐려 보여요</h3>
+<ul><li><strong>목표</strong>를 「체감」으로 바꿔 보세요.</li><li>배율을 바꿨다면 「자동」을 다시 누르세요. 「자동」은 고른 배율에 맞춰 설정을 정합니다.</li><li>원본이 이미 많이 뭉개져 있으면, 사라진 부분은 되살릴 수 없습니다.</li></ul>
+<h3 id="윤곽이-계단처럼-보여요">윤곽이 계단처럼 보여요</h3>
+<p>「자동」을 눌러 보세요. 직접 고치려면 <strong>계단 제거</strong> 칸의 <strong>세기</strong>를 올립니다. 선화·로고라면 <strong>윤곽 재작도</strong>도 함께 올리면 매끈한 선이 됩니다.</p>
+<h3 id="피부가-밀랍처럼-너무-매끈해요">피부가 밀랍처럼 너무 매끈해요</h3>
+<p><strong>질감 되살리기</strong>를 20~30%로 올려 보세요. 고운 결이 다시 살아납니다. 너무 올리면 잡음처럼 보입니다.</p>
+<h3 id="윤곽-둘레에-흰-테두리가-보여요">윤곽 둘레에 흰 테두리가 보여요</h3>
+<p><strong>윤곽 강조</strong> 칸에서 <strong>강도</strong>를 낮추거나 <strong>헤일로 허용치</strong>를 낮추세요.</p>
+<h3 id="너무-오래-걸려요">너무 오래 걸려요</h3>
+<p>배율을 낮추세요. 한 번 처리하고 나면 배율 아래 안내 줄에 다음 처리의 예상 시간이 나옵니다.</p>
+<h3 id="메모리-경고가-나오거나-처리가-멈춰요">메모리 경고가 나오거나 처리가 멈춰요</h3>
+<p>위쪽 오른쪽의 <code>[쓰는 양 / 한도 MB]</code>가 지금 메모리 사용량입니다. 배율을 낮추거나, 다 된 그림은 저장한 뒤 <strong>✕</strong>로 닫으세요. 배율의 「자동」은 이 컴퓨터에서 끝까지 처리할 수 있는 배율만 고릅니다.</p>
+<h3 id="확대-실행이-눌리지-않아요">「확대 실행」이 눌리지 않아요</h3>
+<ul><li>그림을 아직 열지 않았을 때</li><li>「자동」의 주황 막대가 아직 다 차지 않았을 때</li><li>다른 처리가 진행 중일 때</li><li>결과가 너무 커서 만들 수 없을 때(배율 아래 안내 줄에 이유가 나옵니다. 배율을 낮추세요)</li></ul>
+<h3 id="자동이-풀렸습니다라는-안내가-나와요">「「자동」이 풀렸습니다」라는 안내가 나와요</h3>
+<p>「자동」을 쓴 뒤 프리셋을 직접 골랐을 때 나옵니다. 고장이 아닙니다. 다시 「자동」을 누르면 그 사진에 맞춘 설정으로 돌아갑니다.</p>
+<h3 id="색이-달라-보여요">색이 달라 보여요</h3>
+<p>Upscaly는 처음 값으로 색을 바꾸지 않습니다. 휴대폰 사진(Display P3)은 그 색 그대로 읽고 그대로 저장합니다. 색을 고치고 싶을 때만 <strong>색 처리</strong> 칸의 <strong>색 자동</strong>을 누르세요.</p>
+<h3 id="하늘이나-그라데이션에-띠가-보여요">하늘이나 그라데이션에 띠가 보여요</h3>
+<p><strong>8비트 디더링</strong>이 켜져 있는지 보세요(처음 값은 켬). 띠가 전혀 없어야 하면 <strong>16비트 PNG로 저장</strong>에 체크하세요. 파일은 두 배쯤 커집니다.</p>
+<h3 id="투명한-배경은-어떻게-되나요">투명한 배경은 어떻게 되나요?</h3>
+<p>그대로 지켜집니다. 반투명한 가장자리에도 색이 번지지 않고, PNG로 저장됩니다.</p>
+<h3 id="픽셀-아트는요">픽셀 아트는요?</h3>
+<p>「자동」이 픽셀 아트를 알아보고 점 모양을 그대로 키웁니다. 직접 고르려면 <strong>재구성 커널</strong>에서 「최근접」(점 그대로) 또는 「픽셀아트 윤곽 복원」(윤곽을 매끈하게)을 고르세요.</p>
+<h3 id="다시-열었더니-설정이-그대로예요">다시 열었더니 설정이 그대로예요</h3>
+<p>설정은 이 브라우저에 기억됩니다. 다음에 열어도 그대로입니다. 그림은 기억하지 않습니다.</p>
+<h2 id="더-알고-싶다면">더 알고 싶다면</h2>
+<ul><li>앱에서 <kbd>?</kbd> 키를 누르거나 위쪽 맨 오른쪽 <strong>?</strong> 버튼을 누르면 이 도움말이 열립니다.</li><li><a href="instruction.html">설명서</a>에는 모든 버튼과 설정, 저장, 메모리, 단축키가 하나하나 나옵니다.</li><li><a href="paper.html">개발자 논고</a>에는 원리와 수식, 측정 결과가 나옵니다.</li></ul>
+</main>
+</div>
+<footer class="foot">Upscaly v1.3.0 · 도움말 · 도움말·설명서·개발자 논고는 <code>upscaler.html</code>과 같은 폴더에 두면 앱의 「?」 버튼으로 열립니다.</footer>
+<script>
+"use strict";
+/* 탭 표지 — 앱의 목표 버튼과 같은 감쇠 용수철. 다른 문서 탭에서 왔으면(?from=번호) 그 자리에서 튕기며 옮겨 온다 */
+(function () {
+  var tabs = document.querySelector(".tabs"), th = tabs.querySelector(".thumb"), cells = [].slice.call(tabs.querySelectorAll("a"));
+  var cur = cells.filter(function (a) { return a.getAttribute("aria-current") === "page"; })[0];
+  var K = 380, C = 17.5, s = { x: 0, v: 0, raf: 0 };
+  function draw() {
+    var w = cur.offsetWidth, lo = cells[0].offsetLeft, hi = cells[cells.length - 1].offsetLeft, left = s.x, k = 1;
+    if (s.x > hi) { k = Math.max(0.7, 1 - (s.x - hi) / w); left = hi + w * (1 - k); }
+    else if (s.x < lo) { k = Math.max(0.7, 1 - (lo - s.x) / w); left = lo; }
+    else { k = 1 + Math.min(0.08, Math.abs(s.v) / 6000); left = s.x - w * (k - 1) / 2; }
+    th.style.width = w + "px";
+    th.style.transform = "translateX(" + left.toFixed(2) + "px) scaleX(" + k.toFixed(4) + ")";
+  }
+  function settle(animate) {
+    cancelAnimationFrame(s.raf);
+    var target = cur.offsetLeft;
+    if (!animate || matchMedia("(prefers-reduced-motion: reduce)").matches) { s.x = target; s.v = 0; draw(); return; }
+    var t0 = performance.now();
+    function step(t) {
+      var dt = Math.max(0, Math.min(0.034, (t - t0) / 1000)) / 4; t0 = Math.max(t0, t);
+      for (var i = 0; i < 4; i++) { s.v += (-K * (s.x - target) - C * s.v) * dt; s.x += s.v * dt; }
+      if (Math.abs(s.x - target) < 0.25 && Math.abs(s.v) < 4) { s.x = target; s.v = 0; draw(); return; }
+      draw(); s.raf = requestAnimationFrame(step);
+    }
+    s.raf = requestAnimationFrame(step);
+  }
+  var from = +(new URLSearchParams(location.search).get("from"));
+  var prev = cells[from];
+  if (location.search && history.replaceState) history.replaceState(null, "", location.pathname + location.hash);
+  if (prev && prev !== cur) { s.x = prev.offsetLeft; draw(); settle(true); } else settle(false);
+  var lastW = tabs.offsetWidth;   // 관찰을 시작할 때 오는 첫 알림이 옮겨 오는 움직임을 끊지 않게, 폭이 바뀔 때만
+  if (window.ResizeObserver) new ResizeObserver(function () { if (tabs.offsetWidth !== lastW) { lastW = tabs.offsetWidth; settle(false); } }).observe(tabs);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!s.raf) settle(false); });
+})();
+/* 목차: 넓은 화면에서는 늘 펼치고, 읽는 곳을 표시한다 */
+(function () {
+  var toc = document.querySelector(".toc"); if (!toc) return;
+  var wide = matchMedia("(min-width: 1001px)");
+  function fit() { if (wide.matches) toc.open = true; }
+  fit(); if (wide.addEventListener) wide.addEventListener("change", fit);
+  toc.addEventListener("click", function (e) { if (e.target.closest("a") && !wide.matches) toc.open = false; });
+  var links = [].slice.call(toc.querySelectorAll("a")), map = {};
+  links.forEach(function (a) { map[decodeURIComponent(a.getAttribute("href").slice(1))] = a; });
+  var heads = [].slice.call(document.querySelectorAll(".doc h2[id], .doc h3[id]"));
+  if (!window.IntersectionObserver || !heads.length) return;
+  var vis = new Set();
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) vis.add(e.target); else vis.delete(e.target); });
+    var top = heads.filter(function (h) { return vis.has(h); })[0];
+    if (!top) { var y = 0; heads.forEach(function (h) { if (h.getBoundingClientRect().top < 120) top = h; }); }
+    links.forEach(function (a) { a.classList.remove("on"); });
+    if (top && map[top.id]) map[top.id].classList.add("on");
+  }, { rootMargin: "-70px 0px -60% 0px" });
+  heads.forEach(function (h) { io.observe(h); });
+})();
+</script>
+</body>
+</html>

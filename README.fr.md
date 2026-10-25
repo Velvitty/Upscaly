@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <b>Français</b> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.2.2`
+# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.3.0`
 
 Upscaly est un outil d'agrandissement d'images qui vise l'absence de perte. Il tient dans un seul fichier (`upscaler.html`) et effectue tous les calculs dans le navigateur.
 Rien à installer, rien à téléverser. Vos images ne quittent jamais votre appareil.
 
-Version actuelle **v1.2.2** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Version actuelle **v1.3.0** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Sommaire**
 
@@ -56,7 +56,7 @@ Quand on agrandit une petite image, elle devient en général floue, crénelée,
 
 ### Choisir les réglages soi-même
 
-Les panneaux à droite de l'écran sont disposés dans l'ordre du traitement.
+Les panneaux à gauche de l'écran (en dessous sur les écrans étroits) sont disposés dans l'ordre du traitement.
 
 | Panneau | Rôle |
 |---|---|
@@ -78,6 +78,7 @@ Les cases à cocher et curseurs font exactement ce que vous choisissez. Par exem
 - Une image déjà réduite et réenregistrée plusieurs fois a perdu ses détails d'origine, qui ne peuvent pas être récupérés. Upscaly ne fait que déployer de la manière la plus plausible l'information restante ; il n'invente ni visages ni lettres absents.
 - Pour un logo ou un plan dont il existe un original vectoriel (SVG, AI), il vaut toujours mieux utiliser cet original.
 - À 8×, le résultat atteint plusieurs centaines de mégapixels et le traitement prend longtemps. L'indicateur de progression affiche le temps restant.
+- Le petit bouton **?** à l'extrême droite de la barre supérieure (ou la touche <kbd>?</kbd>) ouvre l'aide dans un nouvel onglet. Les onglets en haut passent de l'**Aide** (도움말, en termes simples) au **Manuel** (설명서, toutes les fonctions) et à l'**Article pour développeurs** (개발자 논고, l'original coréen de ce document). Gardez les trois fichiers (`help.html`, `instruction.html`, `paper.html`) dans le même dossier que `upscaler.html`. Les documents sont en coréen.
 
 ---
 
@@ -583,7 +584,7 @@ $`k_1 = 0.5`$ et $`k_2 = 1.5`$ ont été choisis sur les images d'exploration. L
 
 ### Fichiers et environnement d'exécution
 
-L'outil entier tient dans un seul fichier, `upscaler.html` (environ 6 140 lignes, 360 Ko), contenant le HTML, le CSS et le JavaScript. Il n'y a ni bibliothèque externe ni serveur. Seule la police de l'interface (IBM Plex Sans KR) est téléchargée depuis Google Fonts ; à défaut, la police système est utilisée. `CompressionStream` sert à l'enregistrement PNG en flux et les Web Workers au calcul parallèle ; en leur absence, on se replie sur des chemins plus lents. Si l'appareil est en mode sombre, un thème sombre est utilisé.
+L'outil entier tient dans un seul fichier, `upscaler.html` (environ 6 600 lignes, 390 Ko), contenant le HTML, le CSS et le JavaScript. Il n'y a ni bibliothèque externe ni serveur. Seule la police de l'interface (IBM Plex Sans KR) est téléchargée depuis Google Fonts ; à défaut, la police système est utilisée. `CompressionStream` sert à l'enregistrement PNG en flux et les Web Workers au calcul parallèle ; en leur absence, on se replie sur des chemins plus lents. Si l'appareil est en mode sombre, un thème sombre est utilisé. L'aide, le manuel et l'article pour développeurs sont trois fichiers distincts, `help.html`, `instruction.html` et `paper.html` (générés par `docs/build_docs.py` dans le dépôt de développement à partir de `docs/help.md`, `docs/instruction.md` et de l'original coréen de ce README, avec les formules en MathML). Placés dans le même dossier que `upscaler.html`, ils s'ouvrent avec le petit bouton 「?」 à l'extrême droite de la barre supérieure.
 
 ### Composition
 
@@ -707,14 +708,14 @@ Les goulots d'étranglement restants sont l'interpolation DCCI (par canal), la c
 
 Les invariants sont mesurés avec le tramage 8 bits activé (par défaut). Hormis l'élément alpha de l'agrandissement par étapes, ils sont identiques à ceux de la v1.0.0. Voici les autres tests.
 
-| Test | Contenu | v1.2.2 |
+| Test | Contenu | v1.3.0 |
 |---|---|---|
 | `e2e_presets.js` | Traitement de 8 préréglages + enregistrement 8 et 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % par rapport aux 43,446 de la v1.0.0 à cause du tramage) |
 | `engine_regression.js` | Comparaison des sorties 16 bits et statistiques de 134 combinaisons avec la version de référence | 134/134 identiques à l'octet |
 | `worker_test.js` | Tuile du worker = calcul principal | Identiques à l'octet |
 | `alpha_probe.js` | Erreur de couleur des bords semi-transparents par préréglage | |
 | `e2e_autoscale.js` | Facteur automatique : avec un budget de 600 Mo, 512²·800×600 → 8×, 4000×3000 → 2×. Avec le plus proche voisin et DCCI en trois étapes (texture activée), la garantie tient même après 「Auto」, et le facteur supérieur n'est pas garanti avec les réglages 「Auto」 de ce facteur (6 cas). 4000×3000 avec classification fixée dans l'interface, 「Auto」 depuis 1.25× → 2× | 4000×3000 donnait 4× en v1.1.0. À 4×, le résultat fait 192 MP et le seul PNG compressé accumule jusqu'à environ 300 Mo : ce n'est pas garanti. Dans le cas de l'interface, les versions antérieures à v1.1.1 restaient à 1.25× avec 「Aucune garantie」(보장 없음) |
-| `e2e_auto_stale.js` | Avertissement en cas de changement de facteur après 「Auto」 | |
+| `e2e_auto_stale.js` | Avertissement en cas de changement de facteur après Auto ; lancement verrouillé pendant Auto (déverrouillé à 100 %) ; avis quand un préréglage est choisi après Auto, et la mesure en cours s'arrête | ✓ 2 (v1.2.1 : les deux ✗) |
 | `e2e_stage_force.js` | Activation forcée de l'agrandissement par étapes et voyant, conservation des changements de l'utilisateur pendant la première mesure | ✓ 2 (v1.1.0 écrasait les deux) |
 | `blank_canvas.js` | Détection des canevas vides : 6 cas de lecture de l'original, 4 cas d'enregistrement par canevas | ✓ 10 (v1.1.0 manquait 4 cas : coin inférieur droit transparent, un seul point visible) |
 | `gamut_sniff.js` | Détection du gamut large : 5 cas de colr de l'image principale AVIF, 4 cas d'ordre des chunks de couleur PNG, 5 cas de métadonnées ou boîtes de plus de 2 Mo avant l'information de couleur (XMP étendu JPEG, chunks texte PNG, mdat AVIF avant meta), 4 cas de numéros de primaires cICP (non spécifié·réservé·sRGB) | ✓ 18 (v1.1.0 en ratait 10) |
@@ -722,6 +723,8 @@ Les invariants sont mesurés avec le tramage 8 bits activé (par défaut). Hormi
 | `texture_seam.js` | Texture activée : jointures, déterminisme, noir et blanc, teinte des couleurs claires | Jointure maximale 1 (comme avec la texture désactivée), 0 entre deux calculs, 0 en noir et blanc, variation du rapport de couleur du rouge clair 2.9 % (v1.1.0 : 14.0 %) |
 | `pop_seam.js` | 「Perception」 : jointures de tuiles · déterminisme · niveaux de gris · absence de halo (dans la plage du voisinage du résultat Précision) · mode gamma · teinte des couleurs vives · frontières où seule l'opacité change | Jointure au plus 1 (comme Précision), 0 entre deux calculs, niveaux de gris 0, au plus 0,9 niveau au-delà de la plage du voisinage (arrondi 8 bits), variation du rapport de couleur du rouge vif 2,8 %, écart de couleur aux frontières d'opacité au plus 1 (24 avant la correction, 18 sur un dégradé blanc) |
 | `p3_browser.js` | Préservation des couleurs P3 dans un vrai Chromium (primaires et couleurs mélangées, y compris la simulation d'environnements où les images blob: sont bloquées et où `createImageBitmap` convertit en sRGB) | [9.9](#99-display-p3) |
+| `build_docs.py --check` | `help.html`, `instruction.html` et `paper.html` correspondent-ils à leurs sources (`docs/*.md`, README) ; liens internes et formules | à jour ✓ |
+| `docs_browser.js` | Dans un vrai Chromium : bouton 「?」 de l'application et touche <kbd>?</kbd> → aide dans un nouvel onglet, onglets en haut des trois documents, 197 liens internes, 208 formules en MathML, aucun débordement à 390 px, ressort du repère d'onglet | ✓ 13 |
 
 ### 9.2 Données
 
@@ -905,6 +908,12 @@ Au départ, 「Perception」 ajoutait aussi un grain fin (restauration de textur
 ---
 
 ## 12. Historique des versions
+
+### v1.3.0 — Aide, manuel et article pour développeurs
+
+- Trois documents distincts : **Aide** (`help.html`, guide en termes simples et questions fréquentes), **Manuel** (`instruction.html`, chaque élément d'écran, réglage, enregistrement, mémoire, raccourci et dépannage) et **Article pour développeurs** (`paper.html`, l'original coréen de ce README, formules en MathML). Les onglets en haut permettent de passer de l'un à l'autre, et le repère d'onglet se déplace comme un ressort.
+- Un petit bouton **?** à l'extrême droite de la barre supérieure de l'application (la touche <kbd>?</kbd> fait de même). Il ouvre l'aide dans un nouvel onglet, si bien que les images chargées dans l'application restent. Pour garder la barre sur une ligne avec ce bouton en plus, les boutons n'affichent que leur icône à 640 px ou moins, et les espacements sont réduits à 500 px ou moins.
+- La position du panneau de réglages, décrite à tort comme « à droite de l'écran », est corrigée en « à gauche ».
 
 ### v1.2.2 — Retouches de 「Auto」 et des boutons
 
