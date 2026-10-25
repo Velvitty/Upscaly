@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <b>Español</b></p>
 
-# 🔍 Upscaly: ampliador de imágenes que aspira a no perder información (무손실 지향 확대기) `v1.2.1`
+# 🔍 Upscaly: ampliador de imágenes que aspira a no perder información (무손실 지향 확대기) `v1.3.0`
 
 Upscaly es una herramienta de ampliación de imágenes que aspira a no perder información. Funciona con un solo archivo (`upscaler.html`) y realiza todos los cálculos dentro del navegador.
 No hay nada que instalar ni ningún sitio al que subir nada. La imagen nunca sale del dispositivo.
 
-Versión actual **v1.2.1** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Versión actual **v1.3.0** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Índice**
 
@@ -56,7 +56,7 @@ Al agrandar una imagen pequeña, lo habitual es que se vuelva borrosa, que apare
 
 ### Si elige los ajustes usted mismo
 
-Los paneles de la derecha de la pantalla están dispuestos en el orden de procesamiento.
+Los paneles de la izquierda de la pantalla (debajo en pantallas estrechas) están dispuestos en el orden de procesamiento.
 
 | Panel | Qué hace |
 |---|---|
@@ -78,6 +78,7 @@ Las casillas y los controles deslizantes funcionan exactamente como se eligen. P
 - Una imagen que ya se ha reducido y vuelto a guardar muchas veces ha perdido los detalles que tenía, y no se pueden recuperar. Upscaly solo despliega de la forma más verosímil la información que queda; no inventa caras ni letras que no existen.
 - Para logotipos y planos de los que exista un original vectorial (SVG, AI), siempre es mejor usar ese original.
 - Al ampliar 8×, el resultado tiene cientos de megapíxeles y tarda mucho. El indicador de progreso muestra el tiempo restante.
+- El pequeño botón **?** del extremo derecho de la barra superior (o la tecla <kbd>?</kbd>) abre la ayuda en una pestaña nueva. Las pestañas de arriba cambian entre **Ayuda** (도움말, en lenguaje sencillo), **Manual** (설명서, todas las funciones) y **Artículo para desarrolladores** (개발자 논고, el original coreano de este documento). Mantén los tres archivos (`help.html`, `instruction.html`, `paper.html`) en la misma carpeta que `upscaler.html`. Los documentos están en coreano.
 
 ---
 
@@ -210,7 +211,7 @@ Las peticiones automáticas llevan un número, de modo que una medición anterio
 
 ### 3.7 Factor automático
 
-Elige, entre 3× y 8×, el mayor factor cuyo renderizado está **garantizado**. Garantizado significa que la memoria máxima de todo el proceso está dentro del 80 % del presupuesto de memoria, que lo que sobra es mayor que la caché mínima y que el resultado está dentro del límite de guardado. También se cuentan el PNG comprimido que se acumula en memoria durante el guardado (tasa de compresión máxima medida en 47 imágenes del conjunto de datos, con un margen del 10 %) y el original preparado de una imagen anterior que siga en la caché. Como los ajustes que elige 「Automático」 (preajuste, valores explorados de restauración a gran escala, ampliación por etapas) cambian con el factor, y con ellos el presupuesto, 「Automático」 aplica de verdad, empezando por los factores grandes, los ajustes de cada factor y elige el primero que queda garantizado. Al decidir la ampliación por etapas midiéndola en esta foto, también elige solo métodos dentro de la garantía. Una vez elegido, el límite de la caché de teselas se reduce realmente a ese valor. Si ni siquiera 3× está garantizado, se recurre al mayor factor garantizado por debajo de él.
+Elige, entre 3× y 8×, el mayor factor cuyo renderizado está **garantizado**. Al pulsar 「Automático」 en la fila del factor, el factor pasa de inmediato al mayor garantizado con los ajustes actuales. Garantizado significa que la memoria máxima de todo el proceso está dentro del 80 % del presupuesto de memoria, que lo que sobra es mayor que la caché mínima y que el resultado está dentro del límite de guardado. También se cuentan el PNG comprimido que se acumula en memoria durante el guardado (tasa de compresión máxima medida en 47 imágenes del conjunto de datos, con un margen del 10 %) y el original preparado de una imagen anterior que siga en la caché. Como los ajustes que elige 「Automático」 (preajuste, valores explorados de restauración a gran escala, ampliación por etapas) cambian con el factor, y con ellos el presupuesto, 「Automático」 aplica de verdad, empezando por los factores grandes, los ajustes de cada factor y elige el primero que queda garantizado. Al decidir la ampliación por etapas midiéndola en esta foto, también elige solo métodos dentro de la garantía. Una vez elegido, el límite de la caché de teselas se reduce realmente a ese valor. Si ni siquiera 3× está garantizado, se recurre al mayor factor garantizado por debajo de él.
 
 ### 3.8 Guardado
 
@@ -583,7 +584,7 @@ $`k_1 = 0.5`$ y $`k_2 = 1.5`$ se eligieron con las imágenes de exploración. Se
 
 ### Archivos y entorno de ejecución
 
-Toda la herramienta es un único archivo `upscaler.html` (unas 6,140 líneas, 360 KB) que contiene HTML, CSS y JavaScript. No hay bibliotecas externas y no hace falta servidor. Solo la tipografía de la interfaz (IBM Plex Sans KR) se descarga de Google Fonts; si no se puede descargar, se usa la del sistema. Se usa `CompressionStream` para el guardado PNG en flujo y Web Workers para el cálculo en paralelo; si falta alguno, se recurre a una vía más lenta. Si el dispositivo está en modo oscuro, se usa el tema oscuro.
+Toda la herramienta es un único archivo `upscaler.html` (unas 6,600 líneas, 390 KB) que contiene HTML, CSS y JavaScript. No hay bibliotecas externas y no hace falta servidor. Solo la tipografía de la interfaz (IBM Plex Sans KR) se descarga de Google Fonts; si no se puede descargar, se usa la del sistema. Se usa `CompressionStream` para el guardado PNG en flujo y Web Workers para el cálculo en paralelo; si falta alguno, se recurre a una vía más lenta. Si el dispositivo está en modo oscuro, se usa el tema oscuro. La ayuda, el manual y el artículo para desarrolladores son tres archivos separados, `help.html`, `instruction.html` y `paper.html` (generados por `docs/build_docs.py` en el repositorio de desarrollo a partir de `docs/help.md`, `docs/instruction.md` y el original coreano de este README, con las fórmulas en MathML). Si están en la misma carpeta que `upscaler.html`, se abren con el pequeño botón 「?」 del extremo derecho de la barra superior.
 
 ### Componentes
 
@@ -707,14 +708,14 @@ Los cuellos de botella que quedan son la interpolación DCCI (por canal), la cor
 
 Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Salvo el elemento de alfa en la ampliación por etapas, son iguales que en v1.0.0. Estas son las demás pruebas.
 
-| Prueba | Contenido | v1.2.1 |
+| Prueba | Contenido | v1.3.0 |
 |---|---|---|
 | `e2e_presets.js` | Procesamiento con 8 preajustes + guardado en 8 y 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % respecto a los 43,446 de v1.0.0 por el tramado) |
 | `engine_regression.js` | Salida de 16 bits y estadísticas de 134 combinaciones contrastadas con la versión de referencia | 134/134 idénticas byte a byte |
 | `worker_test.js` | Tesela del worker = cálculo en el hilo principal | Idénticas byte a byte |
 | `alpha_probe.js` | Error de color en bordes semitransparentes por preajuste | |
 | `e2e_autoscale.js` | Factor automático: con presupuesto de 600 MB, 512² y 800×600 → 8×, 4000×3000 → 2×. Con vecino más próximo y DCCI en tres etapas (textura activada), la garantía se mantiene tras pulsar 「Automático」, y los factores mayores no quedan garantizados con los ajustes de 「Automático」 de ese factor (6 casos). 4000×3000 con la clasificación fijada en la UI, 「Automático」 desde 1.25× → 2× | 4000×3000 daba 4× en v1.1.0. A 4×, el resultado tiene 192 MP y solo el PNG comprimido acumula hasta unos 300 MB, así que no queda garantizado. En el caso de la UI, las versiones anteriores a v1.1.1 se quedaban en 1.25× con 「Sin garantía」(보장 없음) |
-| `e2e_auto_stale.js` | Aviso de cambio de factor después del modo automático | |
+| `e2e_auto_stale.js` | Aviso de cambio de factor después de Automático; ejecución bloqueada mientras Automático avanza (se libera al 100 %); aviso al elegir un preajuste tras Automático, y la medición en curso se detiene | ✓ 2 (v1.2.1: ambos ✗) |
 | `e2e_stage_force.js` | Ampliación por etapas forzada e indicador, conservación del cambio del usuario durante la primera medición | ✓ 2 (en v1.1.0 se sobrescribían ambos) |
 | `blank_canvas.js` | Detección de lienzo en blanco: 6 casos de lectura del original, 4 de guardado desde lienzo | ✓ 10 (v1.1.0 fallaba 4 casos: esquina inferior derecha transparente y solo un punto visible) |
 | `gamut_sniff.js` | Detección de gama amplia: 5 casos de colr de la imagen principal en AVIF, 4 de orden de los chunks de color en PNG, 5 de metadatos o cajas de más de 2 MB antes de la información de color (XMP extendido en JPEG, chunks de texto en PNG, mdat de AVIF antes de meta), 4 de número de primarios en cICP (no especificado, reservado, sRGB) | ✓ 18 (v1.1.0 fallaba 10) |
@@ -722,6 +723,8 @@ Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Sal
 | `texture_seam.js` | Con textura activada: costuras, determinismo, blanco y negro, tono de colores claros | Costura máxima 1 (igual que con textura desactivada), 0 entre dos cálculos, 0 en blanco y negro, cambio de proporción de color en rojo claro 2.9 % (14.0 % en v1.1.0) |
 | `pop_seam.js` | 「Percepción」: uniones de teselas · determinismo · escala de grises · sin halo (dentro del rango del entorno del resultado Precisión) · modo gamma · tono de colores brillantes · bordes donde solo cambia la opacidad | Unión como máximo 1 (igual que Precisión), 0 entre dos cálculos, escala de grises 0, como máximo 0.9 niveles por encima del rango del entorno (redondeo de 8 bits), cambio de razón de color del rojo brillante 2.8 %, diferencia de color en bordes de opacidad como máximo 1 (24 antes de la corrección, 18 en un degradado blanco) |
 | `p3_browser.js` | Conservación del color P3 en Chromium real (primarios y colores mezclados, incluida la simulación de entornos en los que se bloquean las imágenes blob: y `createImageBitmap` convierte a sRGB) | [9.9](#99-display-p3) |
+| `build_docs.py --check` | Si `help.html`, `instruction.html` y `paper.html` coinciden con sus fuentes (`docs/*.md`, README); enlaces internos y fórmulas | al día ✓ |
+| `docs_browser.js` | En Chromium real: el botón 「?」 de la aplicación y la tecla <kbd>?</kbd> → ayuda en una pestaña nueva, pestañas superiores de los tres documentos, 197 enlaces internos, 208 fórmulas en MathML, sin desbordamiento a 390 px, resorte del marcador de pestaña | ✓ 13 |
 
 ### 9.2 Datos
 
@@ -905,6 +908,18 @@ Al principio, 「Percepción」 añadía también un grano fino (restauración d
 ---
 
 ## 12. Registro de cambios
+
+### v1.3.0 — Ayuda, manual y artículo para desarrolladores
+
+- Tres documentos separados: **Ayuda** (`help.html`, guía en lenguaje sencillo y preguntas frecuentes), **Manual** (`instruction.html`, cada elemento de pantalla, ajuste, guardado, memoria, atajo y solución de problemas) y **Artículo para desarrolladores** (`paper.html`, el original coreano de este README, con fórmulas en MathML). Las pestañas de arriba cambian entre ellos y el marcador de pestaña se desplaza como un resorte.
+- Un pequeño botón **?** en el extremo derecho de la barra superior de la aplicación (la tecla <kbd>?</kbd> hace lo mismo). Abre la ayuda en una pestaña nueva, así que las imágenes cargadas en la aplicación se quedan. Para que la barra siga en una línea con el botón nuevo, los botones muestran solo su icono a 640 px o menos y el espaciado se reduce a 500 px o menos.
+- Se corrige la posición del panel de ajustes, descrita por error como «la derecha de la pantalla», a la izquierda.
+
+### v1.2.2 — Ajustes de 「Automático」 y los botones
+
+- Al pulsar 「Automático」 en la fila del factor, el factor pasa ahora de inmediato al mayor garantizado con los ajustes actuales (antes solo cambiaba al pulsar el botón 「Automático」). El botón 「Automático」 sigue buscando de nuevo con los ajustes propios de cada factor.
+- En 「Objetivo」, el marcador detrás de 「Precisión」 y 「Percepción」 se desliza ahora hacia la opción pulsada como un resorte (se pasa una vez y se detiene en unos 0,5 s; con movimiento reducido se mueve al instante). Al pulsar otro factor se desactiva 「Automático」.
+- Al pulsar 「Automático」, un naranja más oscuro llena ahora el botón de izquierda a derecha para mostrar el avance. Llega al 100 % 0,7 s después de terminar el análisis y las mediciones, y **Ejecutar ampliación** queda desactivado hasta entonces (para que no se pulse justo al terminar). Si después de 「Automático」 eliges tú un preajuste, se avisa de que 「Automático」 se ha desactivado y la medición que siguiera en curso se detiene para no sobrescribir esa elección.
 
 ### v1.2.1 — Nombre y versión visibles
 

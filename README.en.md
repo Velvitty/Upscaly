@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <b>English</b> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.2.1`
+# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.3.0`
 
 An image upscaler that aims to be lossless. It runs as a single file (`upscaler.html`) and does all of its computation inside the browser.
 There is nothing to install and nothing to upload. Your images never leave your device.
 
-Current version **v1.2.1** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
+Current version **v1.3.0** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
 
 **Contents**
 
@@ -56,7 +56,7 @@ When you enlarge a small image, it usually turns blurry, gets jagged staircases,
 
 ### Choosing settings yourself
 
-The panels on the right side of the screen are laid out in processing order.
+The panels on the left side of the screen (below it on narrow screens) are laid out in processing order.
 
 | Panel | What it does |
 |---|---|
@@ -78,6 +78,7 @@ Checkboxes and sliders work exactly as you set them. For example, 「Upscale in 
 - An image that has already been shrunk and re-saved many times has lost the detail it originally had, and that detail cannot be brought back. Upscaly only lays out the remaining information in the most plausible way; it does not invent faces or letters that are not there.
 - For logos and drawings that have a vector original (SVG, AI), using that original is always better.
 - Enlarging 8× produces a result of hundreds of megapixels and takes a long time. The progress display shows the remaining time.
+- The small **?** button at the far right of the top bar (or the <kbd>?</kbd> key) opens the help in a new tab. The tabs at its top switch between **Help** (도움말, plain language), **Manual** (설명서, every feature) and **Developer paper** (개발자 논고, the Korean original of this document). Keep the three files (`help.html`, `instruction.html`, `paper.html`) in the same folder as `upscaler.html`. The documents are in Korean.
 
 ---
 
@@ -210,7 +211,7 @@ Auto requests are numbered, so an earlier measurement that finishes late is not 
 
 ### 3.7 Auto scale
 
-Among 3–8×, it picks the largest scale whose rendering is **guaranteed**. Guaranteed means the peak memory over the whole process is within 80% of the memory budget, the remaining share is larger than the minimum cache, and the result is within the save limit. It also counts the compressed PNG that accumulates in memory while saving (maximum compression ratio measured on 47 images in the data, plus a 10% margin) and the prepared originals of previous images still in the cache. Since the settings 「Auto」 picks (preset · large-scale restoration search values · staged upscaling) differ by scale, the budget differs too, so 「Auto」 actually applies each scale's settings starting from the largest scale and picks the first guaranteed scale. When staged upscaling is decided by measuring this photo, only methods within the guarantee are chosen. Once chosen, the tile cache limit is actually lowered to that value. If even 3× is not guaranteed, it falls back to the largest guaranteed scale below that.
+Among 3–8×, it picks the largest scale whose rendering is **guaranteed**. Pressing 「Auto」 in the scale row moves the scale at once to the largest one guaranteed with the current settings. Guaranteed means the peak memory over the whole process is within 80% of the memory budget, the remaining share is larger than the minimum cache, and the result is within the save limit. It also counts the compressed PNG that accumulates in memory while saving (maximum compression ratio measured on 47 images in the data, plus a 10% margin) and the prepared originals of previous images still in the cache. Since the settings 「Auto」 picks (preset · large-scale restoration search values · staged upscaling) differ by scale, the budget differs too, so 「Auto」 actually applies each scale's settings starting from the largest scale and picks the first guaranteed scale. When staged upscaling is decided by measuring this photo, only methods within the guarantee are chosen. Once chosen, the tile cache limit is actually lowered to that value. If even 3× is not guaranteed, it falls back to the largest guaranteed scale below that.
 
 ### 3.8 Saving
 
@@ -583,7 +584,7 @@ $`k_1 = 0.5`$ and $`k_2 = 1.5`$ were chosen on the exploration images. The 16 co
 
 ### Files and runtime environment
 
-The whole tool is a single file, `upscaler.html` (about 6,140 lines, 360 KB), containing HTML, CSS and JavaScript. There are no external libraries and no server is needed. Only the screen font (IBM Plex Sans KR) is fetched from Google Fonts, and if it cannot be fetched, the system font is used. It uses `CompressionStream` for streaming PNG saving and Web Workers for parallel computation, and falls back to slower paths if either is missing. If the device is in dark mode, it uses a dark theme.
+The whole tool is a single file, `upscaler.html` (about 6,600 lines, 390 KB), containing HTML, CSS and JavaScript. There are no external libraries and no server is needed. Only the screen font (IBM Plex Sans KR) is fetched from Google Fonts, and if it cannot be fetched, the system font is used. It uses `CompressionStream` for streaming PNG saving and Web Workers for parallel computation, and falls back to slower paths if either is missing. If the device is in dark mode, it uses a dark theme. The help, the manual and the developer paper are three separate files, `help.html`, `instruction.html` and `paper.html` (built by `docs/build_docs.py` in the development repository from `docs/help.md`, `docs/instruction.md` and the Korean original of this README, with formulas as MathML). Kept in the same folder as `upscaler.html`, they open from the small 「?」 button at the far right of the top bar.
 
 ### Components
 
@@ -707,14 +708,14 @@ The remaining bottlenecks are DCCI interpolation (per channel), consistency corr
 
 The invariants are measured with 8-bit dithering on (default). Apart from the staged-upscaling alpha item, they are the same as v1.0.0. Other tests:
 
-| Test | Contents | v1.2.1 |
+| Test | Contents | v1.3.0 |
 |---|---|---|
 | `e2e_presets.js` | Processing 8 presets + 8 · 16-bit saving | ✓ 8, 45,711 · 239,731 bytes (8-bit is +5% from v1.0.0's 43,446 due to dither) |
 | `engine_regression.js` | 16-bit output · statistics of 134 combinations compared against the baseline | 134/134 byte-identical |
 | `worker_test.js` | Worker tile = main computation | Byte-identical |
 | `alpha_probe.js` | Semi-transparent edge color error per preset | |
 | `e2e_autoscale.js` | Auto scale: with a 600 MB budget, 512² · 800×600 → 8×, 4000×3000 → 2×. Guaranteed even after pressing 「Auto」 with nearest · DCCI three stages (texture on), and larger scales are not guaranteed with that scale's 「Auto」 settings (6 cases). 4000×3000 with classification fixed in the UI, 「Auto」 at 1.25× → 2× | 4000×3000 was 4× in v1.1.0. At 4× the result is 192 MP and the compressed PNG alone piles up to about 300 MB, so it is not guaranteed. In the UI case, versions before v1.1.1 stayed at 1.25× with 「No guarantee」(보장 없음) |
-| `e2e_auto_stale.js` | Notice on scale change after Auto | |
+| `e2e_auto_stale.js` | Notice on scale change after Auto; Run upscale locked while Auto is in progress (opens at 100%); notice when a preset is chosen after Auto, and a measurement still running stops | ✓ 2 (v1.2.1: both ✗) |
 | `e2e_stage_force.js` | Forcing staged upscaling on · indicator, keeping user changes during the initial measurement | ✓ 2 (v1.1.0 overwrote both) |
 | `blank_canvas.js` | Blank canvas detection: 6 source reads, 4 canvas saves | ✓ 10 (v1.1.0 missed 4 cases where the bottom-right was transparent · only one dot was visible) |
 | `gamut_sniff.js` | Wide-gamut detection: 5 AVIF primary-image colr cases, 4 PNG color chunk orders, 5 cases with over 2 MB of metadata · boxes before the color information (JPEG extended XMP, PNG text chunks, AVIF mdat before meta), 4 cICP primaries codes (unspecified · reserved · sRGB) | ✓ 18 (v1.1.0 got 10 wrong) |
@@ -722,6 +723,8 @@ The invariants are measured with 8-bit dithering on (default). Apart from the st
 | `texture_seam.js` | Texture on: seams · determinism · grayscale · hue of bright colors | Seams at most 1 (same as texture off), two computations 0, grayscale 0, bright red color ratio change 2.9% (v1.1.0: 14.0%) |
 | `pop_seam.js` | 「Perceptual」: tile seams · determinism · grayscale · no halo (within the neighborhood range of the Accuracy result) · gamma mode · hue of bright colors · opacity-only boundaries | Seam at most 1 (same as Accuracy), 0 between two runs, grayscale 0, at most 0.9 levels beyond the neighborhood range (8-bit rounding), bright red color ratio change 2.8%, color difference at opacity-only boundaries at most 1 (24 before the fix, 18 on a white ramp) |
 | `p3_browser.js` | P3 color preservation in real Chromium (primaries · mixed colors, including simulated environments where blob: images are blocked and `createImageBitmap` converts to sRGB) | [9.9](#99-display-p3) |
+| `build_docs.py --check` | Whether `help.html`, `instruction.html` and `paper.html` match their sources (`docs/*.md`, README); internal links and formulas | up to date ✓ |
+| `docs_browser.js` | In real Chromium: the app's 「?」 button and <kbd>?</kbd> key → help in a new tab, top tabs of the three documents, 197 links inside the documents, 208 formulas as MathML, no overflow at 390 px, spring of the tab marker | ✓ 13 |
 
 ### 9.2 Data
 
@@ -905,6 +908,18 @@ At first, 「Perceptual」 also added fine grain (texture revival, 25% at streng
 ---
 
 ## 12. Changelog
+
+### v1.3.0 — Help, manual and developer paper
+
+- Three separate documents: **Help** (`help.html`, a plain-language guide and frequent questions), **Manual** (`instruction.html`, every screen element, setting, saving, memory, shortcut and troubleshooting) and **Developer paper** (`paper.html`, the Korean original of this README, with formulas as MathML). The tabs at the top switch between them, and the tab marker moves over like a spring.
+- A small **?** button at the far right of the app's top bar (the <kbd>?</kbd> key does the same). It opens the help in a new tab, so the images loaded in the app stay. To keep the top bar on one line with the extra button, buttons show only their icons at 640 px or less, and spacing is tighter at 500 px or less.
+- Corrected the position of the settings panel, which was wrongly described as "the right side of the screen", to the left.
+
+### v1.2.2 — Polishing 「Auto」 and the buttons
+
+- Pressing 「Auto」 in the scale row now moves the scale right away to the largest one guaranteed with the current settings (before, it moved only when the 「Auto」 button was pressed). The 「Auto」 button still searches again with each scale's own settings.
+- In 「Goal」, the marker behind 「Accuracy」 and 「Perceptual」 now slides to the pressed option like a spring (it overshoots once and settles in about 0.5 s; with reduced motion it moves at once). Pressing another scale releases 「Auto」.
+- Pressing 「Auto」 now shows its progress as a darker orange that fills the button from left to right. It reaches 100% 0.7 s after the analysis and measurements finish, and **Run upscale** stays disabled until then (so it is not pressed the instant they end). Choosing a preset yourself after 「Auto」 now says that 「Auto」 was released, and any measurement still running stops so it cannot overwrite that choice.
 
 ### v1.2.1 — Name and version display
 

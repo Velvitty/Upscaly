@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upscaly 설명서</title>
+<meta name="description" content="Upscaly: 무손실 지향 확대기 v1.3.0 — 설명서">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600&family=Noto+Sans+Math&display=swap" rel="stylesheet">
+<!-- docs/build_docs.py가 docs/instruction.md에서 만든 파일 — 직접 고치지 말고 원본을 고친 뒤 다시 만드세요 -->
+<style>
+:root{
+  --bg:#efeee9; --panel:#f6f5f2; --paper:#fbfaf7; --sunk:#eae8e3; --line:#d8d4cc;
+  --text:#1b1c1e; --dim:#5f6166; --faint:#8a8c91; --link:#8a5a00;
+  --accent:#e0a41c; --accent-ink:#1b1c1e; --tip:#fff6dd; --tip-line:#e8c766;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#18191c; --panel:#212226; --paper:#1d1e22; --sunk:#26282d; --line:#34363c;
+    --text:#e9e9ec; --dim:#a4a7ad; --faint:#787b83; --link:#f2c14e;
+    --accent:#f2c14e; --accent-ink:#1b1c1e; --tip:#2a2619; --tip-line:#6b5a25;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:72px}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  font-size:15.5px; line-height:1.75; -webkit-font-smoothing:antialiased; word-break:keep-all; overflow-wrap:anywhere;
+}
+a{color:var(--link); text-underline-offset:2px}
+.top{
+  position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:9px 16px; background:var(--panel); border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:9px; font-weight:600; font-size:14.5px; color:inherit; text-decoration:none; white-space:nowrap}
+.brand:hover .nm{text-decoration:underline; text-underline-offset:3px}
+.mark{width:18px; height:18px; flex:none}
+.mark .a{fill:var(--accent)}
+.mark .b{fill:none; stroke:currentColor; stroke-width:1.35; opacity:.5}
+.ver{font-size:11px; font-weight:400; color:var(--faint); border:1px solid var(--line); border-radius:4px; padding:0 5px; line-height:17px}
+.tabs{
+  position:relative; isolation:isolate; display:grid; grid-template-columns:repeat(3,1fr); margin-left:auto;
+  padding:2px; background:var(--sunk); border:1px solid var(--line); border-radius:7px; min-width:330px;
+}
+.tabs a{
+  position:relative; z-index:1; display:block; text-align:center; padding:5px 14px; border-radius:5px;
+  font-size:13.5px; color:var(--dim); text-decoration:none; white-space:nowrap; transition:color .15s;
+}
+.tabs a:hover{color:var(--text)}
+.tabs a[aria-current="page"]{color:var(--accent-ink); font-weight:600}
+.tabs .thumb{position:absolute; left:0; top:2px; bottom:2px; width:0; border-radius:5px; background:var(--accent); z-index:-1; transform-origin:0 50%; will-change:transform}
+.layout{display:grid; grid-template-columns:230px minmax(0,1fr); gap:44px; max-width:1180px; margin:0 auto; padding:30px 24px 90px}
+.toc{position:sticky; top:72px; align-self:start; max-height:calc(100vh - 92px); overflow:auto; font-size:13px; line-height:1.5}
+.toc summary{font-weight:600; font-size:12.5px; color:var(--dim); cursor:pointer; list-style:none; padding:2px 0 8px}
+.toc summary::-webkit-details-marker{display:none}
+.toc ol{list-style:none; margin:0; padding:0}
+.toc li a{display:block; padding:3px 0 3px 10px; border-left:2px solid transparent; color:var(--dim); text-decoration:none}
+.toc li.l3 a{padding-left:22px; font-size:12.5px; color:var(--faint)}
+.toc li a:hover{color:var(--text)}
+.toc li a.on{color:var(--text); border-left-color:var(--accent); font-weight:600}
+.doc{min-width:0; max-width:780px; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:34px 44px 44px}
+.doc h1{font-size:27px; line-height:1.35; margin:0 0 .4em; letter-spacing:-.01em}
+.doc h2{font-size:21px; line-height:1.4; margin:2.2em 0 .6em; padding-top:.9em; border-top:1px solid var(--line)}
+.doc h1 + h2, .doc > h2:first-child{border-top:0; padding-top:0}
+.doc h3{font-size:16.5px; margin:1.8em 0 .4em}
+.doc h4{font-size:15px; margin:1.4em 0 .3em}
+.doc p{margin:.7em 0}
+.doc ul, .doc ol{padding-left:1.5em; margin:.6em 0}
+.doc li{margin:.25em 0}
+.doc li > p{margin:.3em 0}
+.doc hr{border:0; border-top:1px solid var(--line); margin:2em 0}
+.doc code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.86em; background:var(--sunk); border:1px solid var(--line); border-radius:4px; padding:.05em .35em}
+.doc pre{background:var(--sunk); border:1px solid var(--line); border-radius:7px; padding:12px 14px; overflow:auto; font-size:12.5px; line-height:1.55}
+.doc pre code{background:none; border:0; padding:0; font-size:inherit}
+.doc kbd{font-family:inherit; font-size:.85em; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:.05em .4em; background:var(--panel)}
+.doc blockquote{margin:1em 0; padding:.5em 1em; border-left:3px solid var(--line); color:var(--dim)}
+.doc blockquote.tip{background:var(--tip); border-left-color:var(--tip-line); border-radius:0 7px 7px 0; color:var(--text)}
+.doc blockquote p{margin:.4em 0}
+.tbl{overflow-x:auto; margin:1em 0}
+.doc table{border-collapse:collapse; font-size:13.5px; line-height:1.6; min-width:100%}
+.doc th, .doc td{border-bottom:1px solid var(--line); padding:7px 10px; vertical-align:top; text-align:left}
+.doc th{font-weight:600; background:var(--sunk)}
+.mblock{overflow-x:auto; overflow-y:hidden; margin:.9em 0; padding:.3em 0}
+math{font-family:"Noto Sans Math","STIX Two Math","Cambria Math","Latin Modern Math",math; font-size:1.04em}
+math[display="block"]{margin:0}
+.lead{font-size:16.5px; color:var(--dim)}
+.foot{max-width:1180px; margin:0 auto; padding:0 24px 40px; font-size:12.5px; color:var(--faint)}
+@media (max-width:1000px){
+  .layout{grid-template-columns:minmax(0,1fr); gap:0; padding:18px 16px 70px}
+  .toc{position:static; max-height:none; margin-bottom:14px; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 14px}
+  .toc summary{padding:0}
+  .toc[open] summary{padding-bottom:8px}
+  .doc{padding:22px 18px 30px}
+}
+@media (max-width:640px){
+  .top{gap:8px 12px; padding:8px 12px}
+  .tabs{order:3; flex-basis:100%; min-width:0; margin-left:0}
+  .doc h1{font-size:23px}
+  .doc h2{font-size:19px}
+  body{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="upscaler.html" title="Upscaly 앱 열기"><svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><rect class="a" x="1.25" y="1.25" width="7.5" height="7.5" rx="1.25"/><rect class="b" x="7.6" y="7.6" width="11.15" height="11.15" rx="1.75"/></svg><span class="nm">Upscaly</span><span class="ver">v1.3.0</span></a>
+  <nav class="tabs" aria-label="문서"><span class="thumb" aria-hidden="true"></span><a href="help.html?from=1">도움말</a><a href="instruction.html" aria-current="page">설명서</a><a href="paper.html?from=1">개발자 논고</a></nav>
+</header>
+<div class="layout">
+<details class="toc"><summary>목차</summary><nav aria-label="목차"><ol><li class="l2"><a href="#1-개요">1. 개요</a></li><li class="l3"><a href="#11-upscaly는-무엇인가">1.1 Upscaly는 무엇인가</a></li><li class="l3"><a href="#12-무손실-지향이란">1.2 무손실 지향이란</a></li><li class="l3"><a href="#13-필요한-것과-개인-정보">1.3 필요한 것과 개인 정보</a></li><li class="l3"><a href="#14-파일-구성">1.4 파일 구성</a></li><li class="l2"><a href="#2-화면-구성">2. 화면 구성</a></li><li class="l3"><a href="#21-상단-막대">2.1 상단 막대</a></li><li class="l3"><a href="#22-설정-패널">2.2 설정 패널</a></li><li class="l3"><a href="#23-보기-화면과-도구-막대">2.3 보기 화면과 도구 막대</a></li><li class="l3"><a href="#24-좁은-화면">2.4 좁은 화면</a></li><li class="l2"><a href="#3-그림-불러오기">3. 그림 불러오기</a></li><li class="l3"><a href="#31-여는-방법">3.1 여는 방법</a></li><li class="l3"><a href="#32-형식과-개수">3.2 형식과 개수</a></li><li class="l3"><a href="#33-읽을-때-하는-일">3.3 읽을 때 하는 일</a></li><li class="l2"><a href="#4-기본-흐름">4. 기본 흐름</a></li><li class="l2"><a href="#5-설정-하나하나">5. 설정 하나하나</a></li><li class="l3"><a href="#51-배율">5.1 배율</a></li><li class="l3"><a href="#52-프리셋--자동">5.2 프리셋 · 자동</a></li><li class="l3"><a href="#53-목표">5.3 목표</a></li><li class="l3"><a href="#54-재구성-커널">5.4 재구성 커널</a></li><li class="l3"><a href="#55-노이즈잡티-정리">5.5 노이즈·잡티 정리</a></li><li class="l3"><a href="#56-선명도-복원-디컨볼루션">5.6 선명도 복원 (디컨볼루션)</a></li><li class="l3"><a href="#57-계단-제거">5.7 계단 제거</a></li><li class="l3"><a href="#58-윤곽-강조-언샤프">5.8 윤곽 강조 (언샤프)</a></li><li class="l3"><a href="#59-질감-되살리기">5.9 질감 되살리기</a></li><li class="l3"><a href="#510-색-처리">5.10 색 처리</a></li><li class="l3"><a href="#511-모든-사진에-적용--확대-실행">5.11 모든 사진에 적용 · 확대 실행</a></li><li class="l2"><a href="#6-결과-보기">6. 결과 보기</a></li><li class="l3"><a href="#61-진행-표시">6.1 진행 표시</a></li><li class="l3"><a href="#62-원본-비교">6.2 원본 비교</a></li><li class="l3"><a href="#63-확대와-이동">6.3 확대와 이동</a></li><li class="l3"><a href="#64-피사체와-제거분">6.4 피사체와 제거분</a></li><li class="l3"><a href="#65-처리-정보">6.5 처리 정보</a></li><li class="l3"><a href="#66-큰-결과">6.6 큰 결과</a></li><li class="l2"><a href="#7-저장">7. 저장</a></li><li class="l3"><a href="#71-png-저장">7.1 PNG 저장</a></li><li class="l3"><a href="#72-모두-저장">7.2 모두 저장</a></li><li class="l3"><a href="#73-파일-이름">7.3 파일 이름</a></li><li class="l3"><a href="#74-8비트와-16비트">7.4 8비트와 16비트</a></li><li class="l3"><a href="#75-색-공간">7.5 색 공간</a></li><li class="l3"><a href="#76-크기-상한">7.6 크기 상한</a></li><li class="l2"><a href="#8-여러-장-다루기">8. 여러 장 다루기</a></li><li class="l2"><a href="#9-메모리와-속도">9. 메모리와 속도</a></li><li class="l3"><a href="#91-메모리-표시">9.1 메모리 표시</a></li><li class="l3"><a href="#92-메모리-예산">9.2 메모리 예산</a></li><li class="l3"><a href="#93-배율-자동의-보장">9.3 배율 자동의 보장</a></li><li class="l3"><a href="#94-속도">9.4 속도</a></li><li class="l2"><a href="#10-단축키">10. 단축키</a></li><li class="l2"><a href="#11-설정-기억">11. 설정 기억</a></li><li class="l2"><a href="#12-문제-해결">12. 문제 해결</a></li><li class="l2"><a href="#13-한계">13. 한계</a></li><li class="l2"><a href="#14-용어">14. 용어</a></li></ol></nav></details>
+<main class="doc">
+<h1 id="설명서">설명서</h1>
+<p>이 설명서는 Upscaly의 모든 화면 요소와 설정, 저장, 메모리, 단축키를 빠짐없이 설명합니다. 처음이라면 <a href="help.html">도움말</a>의 「가장 쉬운 사용법」만 읽어도 충분합니다. 각 기능의 원리와 수식, 측정 근거는 <a href="paper.html">개발자 논고</a>에 있습니다.</p>
+<h2 id="1-개요">1. 개요</h2>
+<h3 id="11-upscaly는-무엇인가">1.1 Upscaly는 무엇인가</h3>
+<p>Upscaly는 브라우저에서 동작하는 이미지 확대기입니다. 사진·일러스트·회화·만화·선화·문서·UI·로고·픽셀 아트처럼 성질이 다른 그림을 각각 알맞은 방식으로 키워, 흐림·계단·흰 테두리(헤일로)·색 번짐을 줄이면서 원본의 정보를 최대한 지킵니다.</p>
+<h3 id="12-무손실-지향이란">1.2 무손실 지향이란</h3>
+<p>확대는 없던 정보를 만들지 못합니다. Upscaly의 기본 복원은 <strong>결과를 다시 원래 크기로 줄였을 때 원본과 같아지도록</strong> 맞춥니다(원본 정합 보정). 그 위의 보정(윤곽 강조, 계단 제거, 체감 선명도, 질감 되살리기)은 이 복원을 바탕으로 눈에 좋게 다듬는 단계라, 켜면 결과가 원본 정보에서 조금 벗어납니다. 복원 자체가 원본과 얼마나 맞는지는 처리 뒤 정보 줄의 「확대 정합 오차」로 확인할 수 있습니다(<a href="#65-처리-정보">6.5</a>).</p>
+<h3 id="13-필요한-것과-개인-정보">1.3 필요한 것과 개인 정보</h3>
+<ul><li>최신 브라우저(Chrome·Edge·Firefox·Safari). 설치는 필요 없습니다.</li><li>모든 계산은 브라우저 안에서 합니다. 서버도, 외부 계산 라이브러리도 쓰지 않으므로 그림은 기기 밖으로 나가지 않습니다. 화면 글꼴만 인터넷에서 받아 오며, 인터넷이 없으면 기기의 기본 글꼴로 보입니다.</li><li>여러 코어를 쓰는 워커(백그라운드 계산)를 쓸 수 없는 환경에서는 같은 계산을 한 스레드로 합니다. 결과는 같고 느려질 뿐입니다.</li></ul>
+<h3 id="14-파일-구성">1.4 파일 구성</h3>
+<div class="tbl"><table><thead><tr><th>파일</th><th>내용</th></tr></thead><tbody><tr><td><code>upscaler.html</code></td><td>앱 전체(파일 하나)</td></tr><tr><td><code>help.html</code></td><td>도움말 — 쉬운 말 안내</td></tr><tr><td><code>instruction.html</code></td><td>설명서 — 이 문서</td></tr><tr><td><code>paper.html</code></td><td>개발자 논고 — 원리·수식·검증</td></tr></tbody></table></div>
+<p>네 파일을 <strong>같은 폴더</strong>에 두면 앱 상단 맨 오른쪽의 <strong>?</strong> 버튼으로 도움말이 열리고, 문서 위쪽의 탭으로 세 문서를 오갈 수 있습니다. 앱은 <code>upscaler.html</code> 하나만 있어도 동작합니다.</p>
+<h2 id="2-화면-구성">2. 화면 구성</h2>
+<h3 id="21-상단-막대">2.1 상단 막대</h3>
+<p>왼쪽부터 다음이 있습니다.</p>
+<div class="tbl"><table><thead><tr><th>요소</th><th>설명</th></tr></thead><tbody><tr><td>이름·버전</td><td>「Upscaly: 무손실 지향 확대기」와 버전(예: v1.3.0). 좁은 화면에서는 「Upscaly」와 버전만 보입니다</td></tr><tr><td>정보 줄</td><td>지금 그림의 이름·크기·알파 여부·색 공간(Display P3)·JPEG 품질 추정값. 처리 뒤에는 처리 결과 요약(<a href="#65-처리-정보">6.5</a>), 저장 중에는 저장 상태</td></tr><tr><td>메모리 표시</td><td><code>[쓰는 양 / 한도 MB]</code>. 한도의 70%를 넘으면 경고 색, 한도를 넘으면 「저장 후 닫으세요」가 붙습니다. 마우스를 올리면 캐시·스레드·캔버스 한계가 나옵니다(<a href="#91-메모리-표시">9.1</a>)</td></tr><tr><td>이미지 열기</td><td>파일을 고릅니다. 여러 장을 한 번에 고를 수 있습니다</td></tr><tr><td>PNG 저장</td><td>지금 그림의 결과를 저장합니다. 결과가 있을 때만 눌립니다</td></tr><tr><td>모두 저장 *n*장</td><td>결과가 두 장 이상일 때만 나타납니다</td></tr><tr><td>?</td><td>도움말을 새 탭으로 엽니다(<kbd>?</kbd> 키도 같음)</td></tr></tbody></table></div>
+<h3 id="22-설정-패널">2.2 설정 패널</h3>
+<p>화면 왼쪽(좁은 화면에서는 보기 화면 아래)에 있고, 실제 처리 순서대로 놓여 있습니다. 배율 → 프리셋·자동 → 목표 → 재구성 커널 → 노이즈·잡티 정리 → 선명도 복원 → 계단 제거 → 윤곽 강조 → 질감 되살리기 → 색 처리 → 모든 사진에 적용·확대 실행. 칸마다 아래에 회색 설명이 붙어 있습니다. 각 칸은 <a href="#5-설정-하나하나">5장</a>에서 하나씩 설명합니다.</p>
+<h3 id="23-보기-화면과-도구-막대">2.3 보기 화면과 도구 막대</h3>
+<p>가운데 큰 화면에 그림이 보입니다. 그림이 없을 때는 「이미지를 여기에 놓거나 붙여넣으세요」 안내가 나옵니다. 아래쪽 도구 막대는 다음과 같습니다.</p>
+<div class="tbl"><table><thead><tr><th>버튼</th><th>키</th><th>설명</th></tr></thead><tbody><tr><td>맞춤</td><td><kbd>F</kbd></td><td>그림 전체가 화면에 들어오게</td></tr><tr><td>1:1</td><td><kbd>1</kbd></td><td>화면 한 점 = 결과 한 점</td></tr><tr><td>확대율</td><td></td><td>지금 보기 배율(2%~3200%)</td></tr><tr><td>원본 비교</td><td><kbd>C</kbd></td><td>나눠 보기 켜기·끄기(<a href="#62-원본-비교">6.2</a>)</td></tr><tr><td>피사체</td><td><kbd>B</kbd></td><td>피사체 상자 보이기·숨기기(<a href="#64-피사체와-제거분">6.4</a>)</td></tr><tr><td>제거분</td><td></td><td>1× 보정에서 원본 − 결과를 4배로 증폭해 보기</td></tr><tr><td>‹ <em>n</em> / <em>m</em> ›</td><td><kbd>←</kbd> <kbd>→</kbd></td><td>이전·다음 그림</td></tr><tr><td>✕</td><td></td><td>지금 그림 닫기</td></tr></tbody></table></div>
+<p>처리 중에는 화면 아래에 진행 막대와 단계 이름(원본 준비, 정밀 복원, <em>n*단계 확대, 타일 *n</em> / <em>m</em> 등)이 나옵니다.</p>
+<h3 id="24-좁은-화면">2.4 좁은 화면</h3>
+<p>폭이 820px 이하이면 보기 화면이 위, 설정 패널이 아래로 갑니다. 정보 줄은 상단 막대의 둘째 줄로 내려가고, 560px 이하에서는 버튼의 글자가 숨고 아이콘만 남습니다.</p>
+<h2 id="3-그림-불러오기">3. 그림 불러오기</h2>
+<h3 id="31-여는-방법">3.1 여는 방법</h3>
+<ul><li><strong>이미지 열기</strong> 버튼(키보드로는 버튼에 초점을 두고 <kbd>Enter</kbd> 또는 <kbd>Space</kbd>)</li><li>보기 화면에 파일 끌어다 놓기</li><li>복사한 그림 붙여넣기(<kbd>Ctrl</kbd>+<kbd>V</kbd>, 맥은 <kbd>⌘</kbd>+<kbd>V</kbd>)</li></ul>
+<h3 id="32-형식과-개수">3.2 형식과 개수</h3>
+<p>JPEG·PNG·WebP·AVIF 등 브라우저가 읽을 수 있는 그림 파일을 엽니다. 한 번에 최대 <strong>20장</strong>까지 열 수 있고, 20장이 차 있으면 ✕로 하나를 닫은 뒤 다시 엽니다. 큰 파일은 디코딩에 시간이 걸리며, 기다리는 동안 정보 줄에 경과 시간이 나옵니다.</p>
+<h3 id="33-읽을-때-하는-일">3.3 읽을 때 하는 일</h3>
+<ul><li><strong>방향.</strong> 카메라의 EXIF 방향 정보를 적용해 바로 세웁니다.</li><li><strong>JPEG 정보.</strong> JPEG이면 헤더에서 양자화 표·색 표본화(4:2:0 등)·품질 추정값을 읽어, 「정밀 복원」이 원래 JPEG 데이터와 모순되지 않게 정리하는 데 씁니다. 정보 줄에 「JPEG 품질 약 <em>q</em>」가 나옵니다.</li><li><strong>색 공간.</strong> 파일의 색 프로필이 sRGB보다 넓으면(아이폰 등의 Display P3) P3로 읽고, 정보 줄에 「Display P3」가 나옵니다. 저장할 때도 P3로 저장합니다(<a href="#75-색-공간">7.5</a>).</li><li><strong>알파.</strong> 투명도가 있으면 「알파 있음」이 나옵니다. 알파는 색과 같은 계산을 거쳐 가장자리 색 번짐이 없습니다.</li><li><strong>피사체 상자.</strong> 주목도가 높은 덩어리를 찾아 피사체 상자를 만듭니다.</li><li><strong>나눠 확대 첫 값.</strong> 「단계로 나눠 확대」 체크의 처음 값을 이 그림에서 재서 정합니다(<a href="#54-재구성-커널">5.4</a>).</li></ul>
+<h2 id="4-기본-흐름">4. 기본 흐름</h2>
+<ol><li>그림을 엽니다.</li><li><strong>배율</strong>을 고릅니다.</li><li><strong>「자동: (권장, 추천)」</strong> 을 누르고 버튼의 주황 막대가 100%가 될 때까지 기다립니다.</li><li>필요하면 <strong>목표</strong>(정확도·체감), 질감 되살리기, 색 처리를 직접 정합니다. 이 셋은 「자동」이 바꾸지 않습니다.</li><li><strong>확대 실행</strong>을 누릅니다.</li><li>화면에서 확인하고 <strong>PNG 저장</strong>을 누릅니다.</li></ol>
+<blockquote class="tip"><p><strong>알아 두세요</strong> 「자동」은 <strong>고른 배율에 맞춰</strong> 설정을 정합니다. 「자동」 뒤에 배율을 바꾸면 프리셋 칸 아래에 「배율을 바꿨습니다 — 지금 설정은 <em>n</em>×에 맞춘 자동 결과입니다」라는 주황 안내가 나옵니다. 「자동」을 다시 누르면 새 배율에 맞춥니다.</p></blockquote>
+<h2 id="5-설정-하나하나">5. 설정 하나하나</h2>
+<p>체크와 슬라이더는 <strong>고른 그대로</strong> 동작합니다. 알아서 판단하는 일은 「자동」 버튼(과 배율의 「자동」, 「색 자동」)만 합니다. 설정은 이 브라우저에 기억됩니다(<a href="#11-설정-기억">11장</a>).</p>
+<h3 id="51-배율">5.1 배율</h3>
+<div class="tbl"><table><thead><tr><th>항목</th><th>설명</th></tr></thead><tbody><tr><td>픽셀 수(넓이)</td><td>배수만큼 화소 수가 늘어납니다. 가로·세로 배수는 그 제곱근입니다(넓이 2× = 가로·세로 각 1.414×)</td></tr><tr><td>가로·세로 길이</td><td>가로와 세로에 배수를 똑같이 곱합니다(2× = 넓이 4×)</td></tr><tr><td>1× ~ 12×</td><td>1, 1.25, 1.5, 2, 3, 4, 6, 8, 12×</td></tr><tr><td>자동</td><td>누르는 즉시, 지금 설정으로 이 기기에서 렌더링이 <strong>보장되는</strong> 가장 큰 배율(3~8×)로 옮겨 갑니다. 「자동」과 그 배율이 함께 눌린 상태가 되고, 다른 배율을 누르면 자동이 풀립니다. 3×도 보장되지 않으면 그보다 작은 배율로 물러납니다</td></tr></tbody></table></div>
+<ul><li>종횡비는 언제나 그대로입니다. 긴 변·짧은 변에 맞추는 방식이 아닙니다.</li><li><strong>1×</strong>는 리샘플링을 건너뛰고 노이즈 정리·선명도 복원·윤곽 강조만 적용합니다(보정 전용).</li><li>칸 제목 옆에 실제 배수(「넓이 2× · 가로·세로 각 1.414×」 등)가 나옵니다.</li><li><strong>크기 안내 줄</strong>(배율 칩 아래)에는 결과 크기(「가로 640→1,280 · 세로 480→960 px · 1.2 MP · 타일 4개」), 나눠 확대 단계, 그리고 필요하면 경고(결과가 상한을 넘음, 캐시를 넘어 보이는 부분부터 계산, 원본 보정에 필요한 메모리, 예상 시간)가 나옵니다. 배율 「자동」이면 앞에 「배율 자동(3~8×) — 보장되는 최대 …×」가 붙습니다.</li><li>「자동」 버튼은 배율이 「자동」이면 큰 배율부터 <strong>그 배율의 「자동」 설정</strong>을 실제로 적용해 보고 처음 보장되는 배율을 고릅니다. 그래서 칩이 고른 배율과 다르게 정해질 수 있습니다.</li></ul>
+<h3 id="52-프리셋--자동">5.2 프리셋 · 자동</h3>
+<p><strong>「자동: (권장, 추천)」 버튼</strong></p>
+<ol><li>그림을 분석해 9가지(사진·일러스트·회화·만화·선화·문서·UI·로고·픽셀 아트) 중 하나로 가려냅니다.</li><li>종류에 맞는 프리셋에서 출발해 잡음·에지 폭·JPEG 품질을 재서 값을 조정합니다.</li><li>종류와 배율이 검증된 조건에 맞으면 탐색으로 찾은 「크게 복원」 설정을 그대로 씁니다. 아니면 그림에서 방향 평활(계단 제거)의 세기와 나눠 확대 방식을 재서 정합니다.</li><li>무엇을 근거로 정했는지 칸 아래에 적습니다(예: 「자동: 사진 94% · 노이즈 0.01 · 복원 7회 σ0.75 → 표준 기준으로 조정 · 색 처리는 그대로 · 나눠 확대 끔 — 이 사진에서 측정」).</li></ol>
+<p>누르면 버튼 위를 <strong>더 진한 주황</strong>이 왼쪽에서 오른쪽으로 채웁니다. 분석이 끝나면 약 30%, 측정이 진행되며 60%·85%를 향해 천천히 차고, 모두 끝나면 92%에서 0.7초 기다렸다가 100%가 됩니다. <strong>100%가 될 때까지 「확대 실행」은 잠깁니다</strong>(끝나는 순간 서둘러 누르지 않게). 분석하는 짧은 동안은 브라우저가 계산에 묶여 막대가 잠시 멈춰 보일 수 있습니다.</p>
+<p>「자동」이 바꾸지 않는 것: <strong>목표</strong>(정확도·체감)와 체감 세기, <strong>질감 되살리기</strong>, <strong>색 처리</strong>(화이트밸런스·8비트 디더링·16비트 저장), 「선형광에서 계산」.</p>
+<p><strong>프리셋 목록</strong></p>
+<p>「자동」을 쓴 뒤 프리셋을 직접 고르면 「「자동」이 풀렸습니다 — 직접 고른 「…」 설정입니다」 안내가 나오고, 아직 돌던 측정은 멈춰 그 선택을 덮어쓰지 않습니다. 슬라이더를 직접 움직여 어느 프리셋과도 같지 않으면 「사용자 설정」이 됩니다.</p>
+<div class="tbl"><table><thead><tr><th>묶음</th><th>프리셋</th><th>쓰임</th></tr></thead><tbody><tr><td>사진</td><td>표준</td><td>일반 디지털 사진의 기본값</td></tr><tr><td></td><td>인물 · 피부 보존</td><td>피부 질감은 두고 눈·머리카락만 세움</td></tr><tr><td></td><td>인물 · 잡티·노이즈 정리</td><td>피부를 고르게 편 뒤 확대</td></tr><tr><td></td><td>풍경 · 원경 디테일</td><td>나뭇잎·바위처럼 촘촘한 미세 대비</td></tr><tr><td></td><td>야경 · 고감도</td><td>노이즈를 먼저 걷고 복원은 최소</td></tr><tr><td></td><td>필름 스캔 · 입자 유지</td><td>입자를 살리고 스캐너 흐림을 감안</td></tr><tr><td></td><td>접사 · 제품 컷</td><td>초점면만 또렷하게</td></tr><tr><td></td><td>모션 블러 · 스포츠</td><td>흔들린 피사체를 되살림</td></tr><tr><td></td><td>천체 · 점광원</td><td>별은 점으로, 하늘 노이즈는 그대로</td></tr><tr><td>그래픽 · 일러스트</td><td>선화 · 잉크</td><td>흰 테두리 없이 획만 진하게</td></tr><tr><td></td><td>셀 애니메이션 · 평면 채색</td><td>색 경계는 또렷하게, 단색면은 평탄하게</td></tr><tr><td></td><td>애니메이션 일러스트 · 디지털 채색</td><td>그라데이션·발광은 매끄럽게, 윤곽선만 세움</td></tr><tr><td></td><td>만화 스캔 · 스크린톤</td><td>망점이 모아레로 번지지 않게</td></tr><tr><td></td><td>회화 · 붓 질감</td><td>캔버스 질감과 번짐을 살림</td></tr><tr><td></td><td>포스터 · 키 비주얼</td><td>사진과 활자가 섞인 원본</td></tr><tr><td></td><td>로고 · 플랫 그래픽</td><td>경계가 칼 같은 단색 그래픽</td></tr><tr><td></td><td>픽셀 아트 · 무손실</td><td>보간 없이 화소 복제(정수 배수에서 정확)</td></tr><tr><td></td><td>픽셀 아트 · 윤곽 복원</td><td>원래 팔레트로 계단을 곧은 선·곡선으로</td></tr><tr><td>문서 · 텍스트</td><td>스캔 문서 · 본문</td><td>OCR 전처리, 종이 질감은 누르고 획만</td></tr><tr><td></td><td>손글씨 · 서명</td><td>필압 농담을 남기고 가는 획이 끊기지 않게</td></tr><tr><td></td><td>저해상 화면 텍스트</td><td>안티에일리어싱된 작은 글자</td></tr><tr><td></td><td>도면 · 바코드</td><td>이진에 가까운 고대비 원본 전용</td></tr><tr><td>저품질 소스</td><td>JPEG 블록 노이즈</td><td>8×8 블록 경계와 모기 노이즈부터 지움</td></tr><tr><td></td><td>열화 복원 · 노이즈 심한 원본</td><td>압축 얼룩·색 노이즈를 걷은 뒤 복원</td></tr><tr><td></td><td>웹 썸네일 복원</td><td>이미 한 번 축소된 그림</td></tr><tr><td></td><td>UI 스크린샷</td><td>직선·아이콘 경계에 링잉이 없는 커널</td></tr><tr><td></td><td>CCTV · 영상 프레임</td><td>압축 노이즈가 많고 흐린 프레임</td></tr><tr><td>보정 전용 · 1×</td><td>스캔한 듯 정리</td><td>얼룩을 걷고 획을 세움(배율이 1×로 바뀜)</td></tr><tr><td></td><td>선화 깔끔하게</td><td>선 주변 번짐·배경 얼룩 제거</td></tr><tr><td></td><td>매끄럽게 정리</td><td>노이즈·얼룩 제거에 무게</td></tr><tr><td></td><td>노이즈만 제거</td><td>복원·강조 없이 노이즈만</td></tr><tr><td>기준값</td><td>최소 개입 · 순수 Lanczos</td><td>비교 기준(셀 범위·정합·재작도 모두 끔)</td></tr><tr><td></td><td>부드럽게 · 링잉 없음</td><td>튀지 않아야 하는 배경 그림</td></tr></tbody></table></div>
+<h3 id="53-목표">5.3 목표</h3>
+<div class="tbl"><table><thead><tr><th>선택</th><th>설명</th></tr></thead><tbody><tr><td>정확도 (처음 값)</td><td>원본에 가장 가깝게 키웁니다. 다시 줄이면 원본과 같아지도록</td></tr><tr><td>체감</td><td>눈이 선명함으로 느끼는 두 가지, 윤곽의 기울기와 국소 대비를 정답 수준으로 올립니다. 윤곽 둘레의 밝기 범위를 넘지 않게 해 흰 테두리가 생기지 않고, 평탄한 면의 잡음은 거의 늘지 않습니다. 원본과의 수치(PSNR)는 조금 내려갑니다</td></tr><tr><td>체감 세기</td><td>「체감」일 때만 보입니다. 25~150%(처음 값 100%)</td></tr></tbody></table></div>
+<ul><li>프리셋과 「자동」은 이 선택을 바꾸지 않습니다.</li><li>최근접·픽셀아트 커널과 1×에서는 쓰지 않습니다(세기 칸에 「이 커널에서는 쓰지 않음」).</li><li>「체감」으로도 밀랍처럼 매끈하면 <a href="#59-질감-되살리기">질감 되살리기</a> 20~30%를 함께 쓰세요.</li><li>누르면 눌린 칸 뒤의 표지가 용수철처럼 미끄러져 옮겨 갑니다(움직임 줄이기 설정이면 바로).</li></ul>
+<h3 id="54-재구성-커널">5.4 재구성 커널</h3>
+<p>새로 생기는 화소를 어떻게 메울지 정합니다.</p>
+<div class="tbl"><table><thead><tr><th>커널</th><th>성질</th></tr></thead><tbody><tr><td>엣지 적응 DCCI (권장)</td><td>윤곽의 방향을 읽어 그 방향으로만 보간해 확대 단계에서부터 계단이 생기지 않음</td></tr><tr><td>픽셀아트 윤곽 복원</td><td>원래 팔레트의 색만 써서 계단형 윤곽을 곧은 선·곡선으로. 새 색은 윤곽의 안티에일리어싱에만</td></tr><tr><td>Lanczos-3</td><td>원본의 주파수 대역을 최대한 보존하는 표준 재구성</td></tr><tr><td>Lanczos-4</td><td>더 예리함(링잉 가능성도 조금 큼)</td></tr><tr><td>Catmull-Rom</td><td>링잉이 적음</td></tr><tr><td>Mitchell-Netravali</td><td>부드러움</td></tr><tr><td>최근접</td><td>화소 복제. 가로·세로 배수가 정수이면 되줄였을 때 원본과 비트 단위로 같음</td></tr></tbody></table></div>
+<p><strong>단계로 나눠 확대</strong></p>
+<p>체크하면 큰 배율을 여러 번에 나눠 키웁니다. 1×를 뺀 모든 커널·배율에서 쓸 수 있습니다.</p>
+<div class="tbl"><table><thead><tr><th>나누는 방식</th><th>예(8×)</th></tr></thead><tbody><tr><td>2배 먼저</td><td>2× → 4×</td></tr><tr><td>큰 배율 먼저</td><td>4× → 2×</td></tr><tr><td>균형 · 작은 쪽 먼저 / 큰 쪽 먼저</td><td>배율을 비슷한 두 배수로 나눔</td></tr><tr><td>균등 (√ × √)</td><td>2.83× → 2.83×</td></tr><tr><td>세 단계</td><td>2× → 2× → 2× (12×는 2·2·3)</td></tr></tbody></table></div>
+<ul><li>그 배율에서 성립하지 않는 방식(예: 2× 이하에서 「2배 먼저」)은 균등으로 처리합니다.</li><li><strong>단계 사이 선명화</strong>(0~100%): 중간 단계 사이에 거는 선명화의 세기입니다.</li><li><strong>표시등</strong>: 지금 그림의 가운데를 목표 배율만큼 줄였다가 한 번에 확대한 것과 지금 방식으로 나눠 확대한 것을 원본과 비교해, <strong>지금 체크 상태가 나은 쪽이면 초록</strong>으로 켜집니다(「측정 상 더 낫습니다」 / 「…더 낫지 않습니다」). 마우스를 올리면 측정값(dB)이 나옵니다. 측정 중에는 「측정 중…」.</li><li>체크는 측정 결과와 관계없이 <strong>고른 그대로</strong> 동작합니다. 처음 값만 그림을 열 때 재서 정하고, 그 측정이 끝나기 전에 직접 바꾸거나 「자동」을 누르면 늦게 끝난 측정은 그 선택을 건드리지 않습니다.</li><li>나눠도 셀 범위와 정합은 원본을 기준으로 맞춥니다.</li></ul>
+<p><strong>링잉·후광 차단 (셀 범위 제한)</strong> — 출력이 원본 2×2 칸의 최솟값·최댓값을 넘지 못하게 해 새 극값(링잉·후광)을 막습니다. 처음 값 켬.</p>
+<p><strong>원본 정합 보정 — 다시 축소하면 원본</strong> — 결과를 면적 평균으로 되줄였을 때 원본과 같아지도록 맞춥니다. 사진에 맞고, 두 색이 딱 갈리는 선화에서는 원본의 계단을 정답으로 되살리므로 끄는 편이 낫습니다. 처음 값 켬.</p>
+<h3 id="55-노이즈잡티-정리">5.5 노이즈·잡티 정리</h3>
+<p>모두 <strong>확대하기 전, 원본 해상도에서</strong> 합니다.</p>
+<div class="tbl"><table><thead><tr><th>항목</th><th>범위</th><th>설명</th></tr></thead><tbody><tr><td>정밀 복원 (DCT)</td><td>끔 ~ 100%</td><td>이미지에서 잰 잡음 스펙트럼보다 작은 성분만 줄입니다. JPEG이면 파일의 양자화 표로 블록·링잉을 지우되, 원래 JPEG 데이터와 모순되지 않는 범위로 투영해 파일에 기록된 디테일을 지킵니다. 원본 화소 수에 비례해 시간이 걸립니다(2 MP 넘으면 안내)</td></tr><tr><td>양방향 필터 세기</td><td>끔 ~ 0.20</td><td>밝기가 비슷한 이웃끼리만 평균 내 경계는 남기고 평탄한 면의 얼룩만 지웁니다. 올릴수록 피부는 매끄럽지만 모공·솜털도 사라집니다</td></tr><tr><td>반경</td><td>1 ~ 6 px</td><td>양방향 필터가 보는 범위</td></tr></tbody></table></div>
+<p>칸 안의 회색 줄은 이 파일의 JPEG 정보(품질 추정값, 색 표본화)를 알려 줍니다. JPEG가 아니거나 격자를 확정할 수 없으면 잡음 모형만 씁니다.</p>
+<h3 id="56-선명도-복원-디컨볼루션">5.6 선명도 복원 (디컨볼루션)</h3>
+<p>촬영·스캔 단계의 흐림을 Richardson–Lucy 반복으로 되돌립니다. 확대본이 원본보다 또렷해 보이는 이유의 대부분이 여기서 나옵니다.</p>
+<div class="tbl"><table><thead><tr><th>항목</th><th>범위</th><th>설명</th></tr></thead><tbody><tr><td>반복 횟수</td><td>0 ~ 24</td><td>많을수록 강하게. 과하면 노이즈와 링잉도 함께 커집니다</td></tr><tr><td>추정 흐림 반경 σ</td><td>0.30 ~ 1.60</td><td>원본이 얼마나 흐린지의 추정값</td></tr></tbody></table></div>
+<h3 id="57-계단-제거">5.7 계단 제거</h3>
+<div class="tbl"><table><thead><tr><th>항목</th><th>범위</th><th>설명</th></tr></thead><tbody><tr><td>세기 (방향 평활)</td><td>끔 ~ 100%</td><td>선이 뻗은 방향으로만 평균을 내 계단만 없앱니다. 선을 가로지르는 방향은 건드리지 않아 경계는 또렷합니다. 방향이 뚜렷한 곳에만 적용됩니다</td></tr><tr><td>윤곽 재작도</td><td>끔 ~ 100%</td><td>두 색이 맞닿은 경계를 결과 해상도에서 1화소 폭 윤곽으로 다시 그립니다. 방향 평활과 함께 쓰면 계단 없이 매끄럽고 번지지 않는 선이 됩니다. 원본보다 가는 선은 손대지 않습니다</td></tr><tr><td>JPEG 블록 완화</td><td>끔 ~ 100%</td><td>8의 배수 위치의 단차가 주변 변화보다 작을 때만 인공 경계로 보고 폅니다</td></tr></tbody></table></div>
+<h3 id="58-윤곽-강조-언샤프">5.8 윤곽 강조 (언샤프)</h3>
+<div class="tbl"><table><thead><tr><th>항목</th><th>범위</th><th>처음 값</th><th>설명</th></tr></thead><tbody><tr><td>강도</td><td>0 ~ 2</td><td>0.55</td><td>윤곽을 얼마나 세울지</td></tr><tr><td>반경</td><td>자동 ~ 8 px</td><td>자동</td><td>0(자동)이면 배율에 맞춰 계산</td></tr><tr><td>평탄부 보호</td><td>0 ~ 0.05</td><td>0.006</td><td>이보다 작은 변화(평탄한 면의 잡음)는 강조하지 않음</td></tr><tr><td>헤일로 허용치</td><td>0.05 ~ 2</td><td>0.35</td><td>국소 진폭에 비례해 넘침을 부드럽게 제한. 낮추면 흰 테두리가 줄어듦</td></tr></tbody></table></div>
+<h3 id="59-질감-되살리기">5.9 질감 되살리기</h3>
+<p>크게 키우면 원본보다 고운 결(피부결·천·잎·모래)이 없어 밀랍처럼 매끈해집니다. 원본의 가장 고운 결을 재서, <strong>결이 있던 자리에만</strong> 그만큼의 고운 결을 결과 해상도에 다시 얹습니다.</p>
+<ul><li>세기: 끔 ~ 100%(처음 값 끔). 프리셋과 「자동」은 바꾸지 않습니다.</li><li>평탄한 하늘·단색면과 한 방향으로 뻗은 윤곽에는 얹지 않고, 밝기에만 얹어 색은 그대로입니다.</li><li><strong>원본에 없던 결을 지어내는 기능</strong>이라 원본과의 수치 차이는 커집니다. 진짜 결이 아니라 필름 그레인 같은 고운 결입니다.</li><li><strong>사진(특히 인물·피부·천)과 회화에 20~30%</strong> 를 권합니다. 100%는 사진에서 정답과 같은 양의 결을 채우는 세기인데 대개 잡음처럼 보이고, 회화에서는 크게 넘칩니다. 일러스트·그래픽에는 맞지 않습니다.</li><li>최근접·픽셀아트 커널에서는 쓰지 않고 슬라이더가 꺼집니다.</li></ul>
+<h3 id="510-색-처리">5.10 색 처리</h3>
+<p>색 처리는 확대와 분리된 <strong>별도 기능</strong>입니다. 프리셋과 「자동」은 이 칸을 바꾸지 않습니다.</p>
+<div class="tbl"><table><thead><tr><th>항목</th><th>설명</th></tr></thead><tbody><tr><td>화이트밸런스 보정</td><td>끔 ~ 100%(처음 값 끔). 조명 색이 들어간 사진을 바로잡습니다. 전체 밝기는 유지되고 채널 이득은 0.55~1.8로 제한됩니다</td></tr><tr><td>색 자동</td><td>조명 색을 평균·에지·밝은 면의 세 방법으로 추정해, 셋이 모두 인정하는 만큼만 세기를 정합니다. 주황 고양이·노을 같은 피사체 고유색은 고치지 않습니다. 한 색이 화면을 덮은 사진은 틀릴 수 있으니 결과를 보고 조정하세요</td></tr><tr><td>선형광에서 계산 (권장)</td><td>빛의 실제 양(선형광)에서 섞습니다. 끄면 감마 공간에서 바로 계산해 밝은 면과 어두운 면의 경계가 어둡게 뭉칩니다. 처음 값 켬</td></tr><tr><td>8비트 디더링</td><td>8비트로 바꿀 때 ±½단계보다 작은 고운 결을 섞어 크게 키운 하늘·그라데이션에 띠가 생기지 않게 합니다. 화면과 8비트 저장에 같이 적용되고, 정확히 떨어지는 색(단색면·픽셀 아트·흑백)은 바뀌지 않습니다. 파일은 조금 커집니다. 처음 값 켬</td></tr><tr><td>16비트 PNG로 저장</td><td>마지막 양자화에서도 계조를 잃지 않습니다. 저장할 때 타일을 한 번 더 계산하고 파일은 두 배 안팎으로 커집니다</td></tr></tbody></table></div>
+<h3 id="511-모든-사진에-적용--확대-실행">5.11 모든 사진에 적용 · 확대 실행</h3>
+<ul><li><strong>이 설정을 모든 사진에 적용</strong>: 체크하면 확인 창이 나옵니다. 처리할 장수와 배율, 크기 상한을 넘어 빠지는 장수, 이미 처리한 결과를 새 설정으로 덮어쓴다는 것, 처리 뒤 메모리 추정값과 예상 시간(한 장을 처리해 본 뒤)이 나오고, 메모리 한도를 넘으면 경고가 붙습니다. <strong>모두 적용</strong>을 누르면 열린 그림을 차례로 처리합니다(<a href="#8-여러-장-다루기">8장</a>).</li><li><strong>확대 실행</strong>: 지금 그림을 지금 설정으로 처리합니다. 다음일 때는 눌리지 않습니다.<ul><li>그림이 없을 때</li><li>「자동」의 진행 막대가 100%가 되기 전(마우스를 올리면 이유가 나옵니다)</li><li>다른 처리나 여러 장 처리가 진행 중일 때</li><li>결과가 크기 상한을 넘을 때(크기 안내 줄에 이유)</li></ul></li></ul>
+<h2 id="6-결과-보기">6. 결과 보기</h2>
+<h3 id="61-진행-표시">6.1 진행 표시</h3>
+<p>처리 중에는 화면 아래 막대에 진행률과 단계(원본 준비 → 정밀 복원 → 단계 확대 → 타일 <em>n</em> / <em>m</em>)가 나옵니다. 처음 한 번 처리하면 이 기기의 속도를 배워, 다음부터 크기 안내 줄에 예상 시간이 나옵니다.</p>
+<h3 id="62-원본-비교">6.2 원본 비교</h3>
+<p>켜져 있으면(처음 값) 나눔선 왼쪽에 <strong>원본을 브라우저로 키운 것</strong>(「원본 확대 (브라우저 보간)」), 오른쪽에 <strong>처리 결과</strong>가 나옵니다. 나눔선 근처를 끌면 나눔선이 옮겨 가고, 나머지 곳을 끌면 그림이 옮겨 갑니다. <kbd>C</kbd>로 켜고 끕니다.</p>
+<h3 id="63-확대와-이동">6.3 확대와 이동</h3>
+<p>마우스 휠로 커서 아래를 중심으로 2%~3200% 사이에서 키우고 줄입니다. 끌어서 옮깁니다. <strong>맞춤</strong>(<kbd>F</kbd>)과 <strong>1:1</strong>(<kbd>1</kbd>)로 돌아옵니다.</p>
+<h3 id="64-피사체와-제거분">6.4 피사체와 제거분</h3>
+<ul><li><strong>피사체</strong>(<kbd>B</kbd>): 그림을 열 때 찾은 피사체 상자를 보이거나 숨깁니다.</li><li><strong>제거분</strong>: 1× 보정에서만 눌립니다. 원본 − 결과를 4배로 증폭해, 노이즈 정리 등이 무엇을 지웠는지 보여 줍니다.</li></ul>
+<h3 id="65-처리-정보">6.5 처리 정보</h3>
+<p>처리가 끝나면 정보 줄에 다음이 나옵니다.</p>
+<ul><li>원본 → 결과 크기, 배율(넓이 기준이면 가로·세로 실제 배수도)</li><li>커널(DCCI면 내부 격자 배수), 정합 사용 여부, 화이트밸런스 이득(켰을 때)</li><li><strong>확대 정합 오차 평균 / 최대</strong>: 복원 결과(윤곽 강조·계단 제거 등 보정 전)를 면적 평균으로 되줄였을 때, 확대 직전 원본(노이즈 정리·선명도 복원 뒤)과의 차이를 8비트 단계로 잰 값. 0에 가까울수록 복원이 원본 정보에 충실합니다. 1×에서는 「원본 대비 평균 변화」(원래 파일과 결과의 차이, 곧 지운 양)</li><li>결과가 커서 보이는 부분부터 계산했는지, 계산한 스레드 수, 걸린 시간</li></ul>
+<h3 id="66-큰-결과">6.6 큰 결과</h3>
+<p>결과는 타일로 나눠 계산해 캐시에 둡니다. 결과가 캐시보다 크면 <strong>보이는 부분부터</strong> 계산하고, 저장할 때 나머지를 계산합니다. 그래서 수억 화소의 결과도 다룰 수 있습니다. 캐시에서 밀려난 부분을 다시 볼 때는 다시 계산합니다(결과는 같습니다).</p>
+<h2 id="7-저장">7. 저장</h2>
+<h3 id="71-png-저장">7.1 PNG 저장</h3>
+<p>지금 그림의 결과를 PNG로 저장합니다. 브라우저가 스트리밍 압축을 지원하면 타일 줄마다 압축해 이어 붙이므로, 결과 전체를 담는 큰 캔버스를 만들지 않습니다(압축된 파일 조각은 저장을 마칠 때까지 메모리에 모입니다). 저장 중에는 정보 줄에 진행 상황이, 끝나면 파일 이름과 크기가 나옵니다. <strong>화면에 보이는 것과 저장되는 것은 같습니다.</strong></p>
+<h3 id="72-모두-저장">7.2 모두 저장</h3>
+<p>결과가 있는 그림이 두 장 이상이면 나타납니다. 한 장씩 차례로 인코딩해 내보내므로 여러 장의 PNG를 한꺼번에 메모리에 들고 있지 않습니다. 브라우저가 여러 파일 내려받기를 물어보면 허용하세요.</p>
+<h3 id="73-파일-이름">7.3 파일 이름</h3>
+<p><code>원래이름_배율x_가로x세로.png</code> 형식입니다. 넓이 기준이면 배율 뒤에 <code>px</code>가, 16비트면 끝에 <code>_16bit</code>가 붙습니다. 예: <code>photo_2x_2560x1920.png</code>, <code>photo_2xpx_1810x1358_16bit.png</code>.</p>
+<h3 id="74-8비트와-16비트">7.4 8비트와 16비트</h3>
+<div class="tbl"><table><thead><tr><th></th><th>8비트(처음 값)</th><th>16비트</th></tr></thead><tbody><tr><td>계조</td><td>채널당 256단계(디더링으로 띠를 가림)</td><td>채널당 65536단계</td></tr><tr><td>파일 크기</td><td>기준</td><td>두 배 안팎</td></tr><tr><td>저장 시간</td><td>화면용 타일을 그대로 씀</td><td>타일을 다시 계산(128행 띠 단위)</td></tr><tr><td>쓸 곳</td><td>보통의 보기·공유</td><td>이후 편집·인쇄, 띠가 전혀 없어야 할 때</td></tr></tbody></table></div>
+<h3 id="75-색-공간">7.5 색 공간</h3>
+<p>보통은 sRGB로 저장합니다. P3로 읽은 그림은 Display P3로 저장하며, 파일에 cICP 청크(Display P3)와 같은 뜻의 ICC 프로필을 함께 넣어 어느 쪽을 읽는 프로그램이든 색이 맞게 보입니다. 파일에는 커널과 배율을 적은 <code>Software</code> 정보도 들어갑니다.</p>
+<h3 id="76-크기-상한">7.6 크기 상한</h3>
+<div class="tbl"><table><thead><tr><th>환경</th><th>결과 상한</th></tr></thead><tbody><tr><td>스트리밍 압축을 지원하는 브라우저</td><td>한 변 131,072 px, 총 20억 화소</td></tr><tr><td>지원하지 않는 브라우저</td><td>그 브라우저의 캔버스 한계(예: iOS 16.7 MP). 16비트 저장 불가</td></tr></tbody></table></div>
+<p>상한을 넘는 배율은 크기 안내 줄에 이유가 나오고 「확대 실행」이 잠깁니다.</p>
+<h2 id="8-여러-장-다루기">8. 여러 장 다루기</h2>
+<ul><li>최대 20장을 열고 <strong>‹ ›</strong>(<kbd>←</kbd> <kbd>→</kbd>)로 오갑니다. 그림마다 결과와 피사체 상자가 따로 기억됩니다. 설정은 하나라 모든 그림이 같은 설정 패널을 씁니다.</li><li><strong>이 설정을 모든 사진에 적용</strong> → 확인 창의 <strong>모두 적용</strong>: 크기 상한 안의 그림을 차례로 처리합니다. 진행 막대 앞에 「<em>k</em> / *n*장」이 붙습니다. 메모리 부족 등으로 한 장에서 실패하면 거기서 멈추고 알려 줍니다. 끝나면 「*n*장 처리 완료」.</li><li>모든 그림에 <strong>같은 설정</strong>이 들어갑니다. 그림마다 알맞게 하려면 한 장씩 「자동」을 누르고 처리하세요.</li><li>다른 그림으로 넘어가면 앞 그림에서 돌던 「자동」 측정은 멈춥니다.</li><li><strong>✕</strong>로 지금 그림을 닫아 메모리를 돌려받습니다.</li></ul>
+<h2 id="9-메모리와-속도">9. 메모리와 속도</h2>
+<h3 id="91-메모리-표시">9.1 메모리 표시</h3>
+<p>상단 막대의 <code>[쓰는 양 / 한도 MB]</code>는 열린 원본 캔버스, 결과 타일 캐시, 준비된 원본 평면이 차지하는 메모리의 추정값과, 이 기기에서 안전하다고 보는 한도입니다. 쓰는 양이 한도의 70%를 넘으면 경고 색으로 바뀌고, 한도를 넘으면 「저장 후 닫으세요」가 붙습니다. 마우스를 올리면 타일 캐시 사용량, 계산 스레드, 이 브라우저의 원본 캔버스 한계가 나옵니다.</p>
+<h3 id="92-메모리-예산">9.2 메모리 예산</h3>
+<p>브라우저는 남은 메모리를 정확히 알려 주지 않으므로 한도는 추정값입니다.</p>
+<div class="tbl"><table><thead><tr><th>환경</th><th>한도</th></tr></thead><tbody><tr><td>데스크톱(기기 메모리를 알려 주는 브라우저)</td><td>기기 메모리의 15%, 400~1500 MB</td></tr><tr><td>데스크톱(힙 한계만 아는 경우)</td><td>힙 한계의 50%, 최대 1500 MB</td></tr><tr><td>휴대폰·태블릿</td><td>기기 메모리의 12%, 최대 400 MB(모르면 180 MB)</td></tr><tr><td>그 밖</td><td>600 MB</td></tr></tbody></table></div>
+<h3 id="93-배율-자동의-보장">9.3 배율 자동의 보장</h3>
+<p>배율 「자동」은 처리 전 과정의 최대 메모리(원본 준비, 나눠 확대 중간 단계, 워커 타일, 저장 띠, 저장 중 모이는 압축 PNG, 다른 원본과 캐시에 남은 준비된 원본)가 한도의 80% 안이고, 남는 몫이 최소 캐시보다 크고, 결과가 저장 상한 안인 배율만 고릅니다. 고르면 타일 캐시의 상한도 실제로 그 값으로 낮춥니다. 시간은 따지지 않습니다.</p>
+<h3 id="94-속도">9.4 속도</h3>
+<ul><li>워커를 코어 수 − 1개(최대 8개) 띄워 타일을 나눠 계산합니다. 워커가 5초 안에 응답하지 않으면 같은 계산을 한 스레드로 합니다.</li><li>결과가 1200만 화소를 넘으면 처리에 수십 초가 걸릴 수 있다고 안내합니다. 8×면 결과가 수백 메가화소라 몇 분이 걸릴 수 있습니다.</li><li>정밀 복원(DCT)은 원본 화소 수에 비례해 시간이 걸립니다.</li><li>같은 설정으로 다시 처리하면 원본 준비 결과(최근 두 개)를 다시 써서 빨라집니다.</li></ul>
+<h2 id="10-단축키">10. 단축키</h2>
+<div class="tbl"><table><thead><tr><th>키</th><th>동작</th></tr></thead><tbody><tr><td><kbd>F</kbd></td><td>맞춤</td></tr><tr><td><kbd>1</kbd></td><td>1:1</td></tr><tr><td><kbd>C</kbd></td><td>원본 비교 켜기·끄기</td></tr><tr><td><kbd>B</kbd></td><td>피사체 상자 보이기·숨기기</td></tr><tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>이전·다음 그림</td></tr><tr><td><kbd>?</kbd></td><td>도움말 열기(새 탭)</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>그림 붙여넣기</td></tr><tr><td><kbd>Enter</kbd> / <kbd>Space</kbd></td><td>(이미지 열기 버튼에 초점이 있을 때) 파일 고르기</td></tr></tbody></table></div>
+<p>입력 칸(슬라이더·선택 상자)에 초점이 있을 때는 단축키가 동작하지 않습니다.</p>
+<h2 id="11-설정-기억">11. 설정 기억</h2>
+<p>설정은 이 브라우저의 저장 공간에 기억되어, 다음에 열어도 그대로입니다. 배율과 기준(넓이·가로·세로)·배율 자동, 커널, 나눠 확대와 방식·단계 사이 선명화, 정합·셀 범위, 모든 슬라이더, 목표와 체감 세기, 질감, 선형광, 8비트 디더링, 16비트 저장이 기억됩니다. 그림과 결과는 기억하지 않습니다. 개인 정보 보호 모드 등으로 저장 공간을 쓸 수 없으면 기억하지 않을 뿐 동작은 같습니다.</p>
+<h2 id="12-문제-해결">12. 문제 해결</h2>
+<div class="tbl"><table><thead><tr><th>증상</th><th>원인과 해결</th></tr></thead><tbody><tr><td>「이미지 파일이 아닙니다」</td><td>그림이 아닌 파일. 그림 파일을 여세요</td></tr><tr><td>「이미지를 열지 못했습니다」</td><td>브라우저가 해독하지 못하는 형식(예: 일부 HEIC). 다른 형식으로 바꿔 여세요</td></tr><tr><td>「이미 20장을 열었습니다」</td><td>✕로 하나를 닫고 다시 여세요</td></tr><tr><td>「확대 실행」이 잠김</td><td><a href="#511-모든-사진에-적용--확대-실행">5.11</a>의 조건을 보세요</td></tr><tr><td>결과가 흐림</td><td>목표 「체감」, 배율을 바꿨다면 「자동」 다시, 선명도 복원 반복 늘리기</td></tr><tr><td>계단이 보임</td><td>계단 제거 세기·윤곽 재작도 올리기, 커널 DCCI</td></tr><tr><td>흰 테두리(헤일로)</td><td>윤곽 강조 강도·헤일로 허용치 낮추기, 「링잉·후광 차단」 켜기</td></tr><tr><td>밀랍 같은 피부</td><td>질감 되살리기 20~30%, 양방향 필터 세기 낮추기</td></tr><tr><td>선화의 선이 원본처럼 계단짐</td><td>「원본 정합 보정」 끄기, 윤곽 재작도 올리기</td></tr><tr><td>하늘에 띠</td><td>8비트 디더링 켜기 또는 16비트 저장</td></tr><tr><td>색이 칙칙함</td><td>P3 사진이면 정보 줄에 「Display P3」가 있는지 확인. 브라우저가 P3 캔버스를 지원하지 않으면 sRGB로 읽습니다</td></tr><tr><td>처리 중 멈춤·「메모리 부족일 수 있습니다」</td><td>배율 낮추기, 다 된 그림 저장 후 닫기, 배율 「자동」 쓰기</td></tr><tr><td>16비트 저장 실패</td><td>스트리밍 압축이 없는 브라우저입니다. 8비트로 저장하세요</td></tr><tr><td>「배율을 바꿨습니다…」 주황 안내</td><td>「자동」을 다시 누르면 새 배율에 맞춥니다</td></tr><tr><td>「「자동」이 풀렸습니다…」</td><td>「자동」 뒤 프리셋을 직접 고른 것. 「자동」을 다시 누르면 돌아갑니다</td></tr><tr><td>도움말이 열리지 않음</td><td><code>help.html</code>이 <code>upscaler.html</code>과 같은 폴더에 있어야 합니다</td></tr></tbody></table></div>
+<h2 id="13-한계">13. 한계</h2>
+<ul><li>이미 여러 번 줄이고 다시 저장한 그림의 사라진 세부는 되살릴 수 없습니다. 없는 얼굴이나 글자를 지어내지 않습니다.</li><li>「체감」은 정보를 늘리지 않습니다. 이미 가파른 윤곽의 선화·문서·로고에서는 효과가 작거나 넘칠 수 있습니다.</li><li>질감 되살리기는 위치가 정답과 맞지 않는 결이라, 세게 하면 잡음처럼 보입니다. 눈에 확연한 질감은 생성 모델(신경망)이 필요합니다.</li><li>벡터 원본(SVG, AI)이 있는 로고·도면은 그 원본이 언제나 낫습니다.</li><li>배율 자동은 메모리만 봅니다. 처리 시간은 따지지 않습니다.</li><li>메모리 한도는 추정값이라 「보장」도 그 추정 기준입니다.</li></ul>
+<p>자세한 한계와 측정은 <a href="paper.html#11-한계">개발자 논고의 「한계」</a>를 보세요.</p>
+<h2 id="14-용어">14. 용어</h2>
+<div class="tbl"><table><thead><tr><th>용어</th><th>뜻</th></tr></thead><tbody><tr><td>배율</td><td>결과가 원본의 몇 배인지. 가로·세로 기준과 넓이 기준이 있음</td></tr><tr><td>커널</td><td>새 화소를 이웃 화소로 메우는 방법</td></tr><tr><td>DCCI</td><td>방향 적응 3차 보간. 윤곽 방향을 따라 메움</td></tr><tr><td>링잉</td><td>경계 옆에 생기는 물결 같은 줄무늬</td></tr><tr><td>헤일로</td><td>윤곽 둘레의 흰(또는 검은) 테두리</td></tr><tr><td>셀 범위 제한</td><td>결과가 원본 2×2 칸의 밝기 범위를 넘지 못하게 하는 것</td></tr><tr><td>원본 정합</td><td>결과를 되줄이면 원본이 되도록 맞추는 것</td></tr><tr><td>디컨볼루션</td><td>흐림을 거꾸로 계산해 되돌리는 것</td></tr><tr><td>선형광</td><td>빛의 실제 양. 화면 값(sRGB)은 눈에 맞춰 휘어 놓은 값</td></tr><tr><td>디더링</td><td>반올림 전에 고운 잡음을 섞어 계단 같은 띠를 가리는 것</td></tr><tr><td>Display P3</td><td>sRGB보다 넓은 색 범위. 최근 휴대폰 사진에 많음</td></tr><tr><td>타일</td><td>결과를 나눠 계산하는 조각</td></tr><tr><td>워커</td><td>화면을 멈추지 않고 뒤에서 계산하는 일꾼(스레드)</td></tr><tr><td>PSNR</td><td>원본과의 차이를 dB로 잰 값. 클수록 원본에 가까움</td></tr></tbody></table></div>
+</main>
+</div>
+<footer class="foot">Upscaly v1.3.0 · 설명서 · 도움말·설명서·개발자 논고는 <code>upscaler.html</code>과 같은 폴더에 두면 앱의 「?」 버튼으로 열립니다.</footer>
+<script>
+"use strict";
+/* 탭 표지 — 앱의 목표 버튼과 같은 감쇠 용수철. 다른 문서 탭에서 왔으면(?from=번호) 그 자리에서 튕기며 옮겨 온다 */
+(function () {
+  var tabs = document.querySelector(".tabs"), th = tabs.querySelector(".thumb"), cells = [].slice.call(tabs.querySelectorAll("a"));
+  var cur = cells.filter(function (a) { return a.getAttribute("aria-current") === "page"; })[0];
+  var K = 380, C = 17.5, s = { x: 0, v: 0, raf: 0 };
+  function draw() {
+    var w = cur.offsetWidth, lo = cells[0].offsetLeft, hi = cells[cells.length - 1].offsetLeft, left = s.x, k = 1;
+    if (s.x > hi) { k = Math.max(0.7, 1 - (s.x - hi) / w); left = hi + w * (1 - k); }
+    else if (s.x < lo) { k = Math.max(0.7, 1 - (lo - s.x) / w); left = lo; }
+    else { k = 1 + Math.min(0.08, Math.abs(s.v) / 6000); left = s.x - w * (k - 1) / 2; }
+    th.style.width = w + "px";
+    th.style.transform = "translateX(" + left.toFixed(2) + "px) scaleX(" + k.toFixed(4) + ")";
+  }
+  function settle(animate) {
+    cancelAnimationFrame(s.raf);
+    var target = cur.offsetLeft;
+    if (!animate || matchMedia("(prefers-reduced-motion: reduce)").matches) { s.x = target; s.v = 0; draw(); return; }
+    var t0 = performance.now();
+    function step(t) {
+      var dt = Math.max(0, Math.min(0.034, (t - t0) / 1000)) / 4; t0 = Math.max(t0, t);
+      for (var i = 0; i < 4; i++) { s.v += (-K * (s.x - target) - C * s.v) * dt; s.x += s.v * dt; }
+      if (Math.abs(s.x - target) < 0.25 && Math.abs(s.v) < 4) { s.x = target; s.v = 0; draw(); return; }
+      draw(); s.raf = requestAnimationFrame(step);
+    }
+    s.raf = requestAnimationFrame(step);
+  }
+  var from = +(new URLSearchParams(location.search).get("from"));
+  var prev = cells[from];
+  if (location.search && history.replaceState) history.replaceState(null, "", location.pathname + location.hash);
+  if (prev && prev !== cur) { s.x = prev.offsetLeft; draw(); settle(true); } else settle(false);
+  var lastW = tabs.offsetWidth;   // 관찰을 시작할 때 오는 첫 알림이 옮겨 오는 움직임을 끊지 않게, 폭이 바뀔 때만
+  if (window.ResizeObserver) new ResizeObserver(function () { if (tabs.offsetWidth !== lastW) { lastW = tabs.offsetWidth; settle(false); } }).observe(tabs);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (!s.raf) settle(false); });
+})();
+/* 목차: 넓은 화면에서는 늘 펼치고, 읽는 곳을 표시한다 */
+(function () {
+  var toc = document.querySelector(".toc"); if (!toc) return;
+  var wide = matchMedia("(min-width: 1001px)");
+  function fit() { if (wide.matches) toc.open = true; }
+  fit(); if (wide.addEventListener) wide.addEventListener("change", fit);
+  toc.addEventListener("click", function (e) { if (e.target.closest("a") && !wide.matches) toc.open = false; });
+  var links = [].slice.call(toc.querySelectorAll("a")), map = {};
+  links.forEach(function (a) { map[decodeURIComponent(a.getAttribute("href").slice(1))] = a; });
+  var heads = [].slice.call(document.querySelectorAll(".doc h2[id], .doc h3[id]"));
+  if (!window.IntersectionObserver || !heads.length) return;
+  var vis = new Set();
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) vis.add(e.target); else vis.delete(e.target); });
+    var top = heads.filter(function (h) { return vis.has(h); })[0];
+    if (!top) { var y = 0; heads.forEach(function (h) { if (h.getBoundingClientRect().top < 120) top = h; }); }
+    links.forEach(function (a) { a.classList.remove("on"); });
+    if (top && map[top.id]) map[top.id].classList.add("on");
+  }, { rootMargin: "-70px 0px -60% 0px" });
+  heads.forEach(function (h) { io.observe(h); });
+})();
+</script>
+</body>
+</html>
