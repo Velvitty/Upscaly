@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>확대기 — 무손실 지향 이미지 업스케일러</title>
+<title>Upscaly: 무손실 지향 확대기 v1.2.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;600&display=swap" rel="stylesheet">
@@ -56,6 +56,11 @@ body{
   padding-right:14px; border-right:1px solid var(--line); align-self:stretch;
 }
 .mark{width:18px; height:18px; flex:none}
+.brand .name{white-space:nowrap}
+.brand .ver{
+  font-size:11px; font-weight:400; letter-spacing:0; color:var(--faint);
+  border:1px solid var(--line); border-radius:4px; padding:0 5px; line-height:17px; margin-left:-2px;
+}
 .mark .a{fill:var(--accent)}
 .mark .b{fill:none; stroke:currentColor; stroke-width:1.35; opacity:.5}
 .readout{
@@ -232,6 +237,14 @@ dialog .detail.warn{color:var(--warn)}
   .bar .btn{padding:0 9px}
   .brand{padding-right:10px}
 }
+@media (max-width:720px){.brand .sub{display:none}}   /* 좁은 화면: 「Upscaly v1.2.1」만 (버튼이 다음 줄로 밀리지 않게) */
+@media (max-width:420px){
+  .bar{gap:8px}
+  .brand{gap:5px}
+  .brand .mark{display:none}
+  .brand .ver{border:0; padding:0; margin-left:0}
+  .mem{margin-right:0}
+}
 @media (max-width:820px){
   main{grid-template-columns:1fr; grid-template-rows:minmax(300px,46vh) auto}
   .rail{grid-row:2; border-right:0; border-top:1px solid var(--line)}
@@ -250,7 +263,8 @@ dialog .detail.warn{color:var(--warn)}
         <rect class="a" x="1.25" y="1.25" width="7.5" height="7.5" rx="1.25"/>
         <rect class="b" x="7.6" y="7.6" width="11.15" height="11.15" rx="1.75"/>
       </svg>
-      확대기
+      <span class="name">Upscaly<span class="sub">: 무손실 지향 확대기</span></span>
+      <span class="ver num" title="버전">v1.2.1</span>
     </div>
     <div class="readout num" id="readout">이미지를 열어 시작하세요.</div>
     <div class="acts">
