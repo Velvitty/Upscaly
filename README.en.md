@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <b>English</b> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly (확대기)
+# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.2.1`
 
 An image upscaler that aims to be lossless. It runs as a single file (`upscaler.html`) and does all of its computation inside the browser.
 There is nothing to install and nothing to upload. Your images never leave your device.
 
-Current version **v1.2.0** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
+Current version **v1.2.1** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
 
 **Contents**
 
@@ -707,7 +707,7 @@ The remaining bottlenecks are DCCI interpolation (per channel), consistency corr
 
 The invariants are measured with 8-bit dithering on (default). Apart from the staged-upscaling alpha item, they are the same as v1.0.0. Other tests:
 
-| Test | Contents | v1.2.0 |
+| Test | Contents | v1.2.1 |
 |---|---|---|
 | `e2e_presets.js` | Processing 8 presets + 8 · 16-bit saving | ✓ 8, 45,711 · 239,731 bytes (8-bit is +5% from v1.0.0's 43,446 due to dither) |
 | `engine_regression.js` | 16-bit output · statistics of 134 combinations compared against the baseline | 134/134 byte-identical |
@@ -905,6 +905,11 @@ At first, 「Perceptual」 also added fine grain (texture revival, 25% at streng
 ---
 
 ## 12. Changelog
+
+### v1.2.1 — Name and version display
+
+- The app title is now **Upscaly: 무손실 지향 확대기** (Upscaly: lossless-oriented upscaler), and the version (v1.2.1) is shown next to the name in the top bar. On narrow screens (720px or less) only "Upscaly" and the version are shown.
+- Computation and saved results are the same as in v1.2.0.
 
 ### v1.2.0 — Two goals: accuracy and perception
 

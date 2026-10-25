@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <b>Français</b> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly (확대기)
+# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.2.1`
 
 Upscaly est un outil d'agrandissement d'images qui vise l'absence de perte. Il tient dans un seul fichier (`upscaler.html`) et effectue tous les calculs dans le navigateur.
 Rien à installer, rien à téléverser. Vos images ne quittent jamais votre appareil.
 
-Version actuelle **v1.2.0** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Version actuelle **v1.2.1** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Sommaire**
 
@@ -707,7 +707,7 @@ Les goulots d'étranglement restants sont l'interpolation DCCI (par canal), la c
 
 Les invariants sont mesurés avec le tramage 8 bits activé (par défaut). Hormis l'élément alpha de l'agrandissement par étapes, ils sont identiques à ceux de la v1.0.0. Voici les autres tests.
 
-| Test | Contenu | v1.2.0 |
+| Test | Contenu | v1.2.1 |
 |---|---|---|
 | `e2e_presets.js` | Traitement de 8 préréglages + enregistrement 8 et 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % par rapport aux 43,446 de la v1.0.0 à cause du tramage) |
 | `engine_regression.js` | Comparaison des sorties 16 bits et statistiques de 134 combinaisons avec la version de référence | 134/134 identiques à l'octet |
@@ -905,6 +905,11 @@ Au départ, 「Perception」 ajoutait aussi un grain fin (restauration de textur
 ---
 
 ## 12. Historique des versions
+
+### v1.2.1 — Nom et affichage de la version
+
+- Le titre de l'application devient **Upscaly: 무손실 지향 확대기** (Upscaly : agrandisseur d'images visant l'absence de perte), et la version (v1.2.1) s'affiche à côté du nom dans la barre du haut. Sur les écrans étroits (720 px ou moins), seuls « Upscaly » et la version s'affichent.
+- Les calculs et les fichiers enregistrés sont identiques à ceux de la v1.2.0.
 
 ### v1.2.0 — Deux objectifs : précision et perception
 
