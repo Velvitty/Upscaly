@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Upscaly: 무손실 지향 확대기 v1.3.0</title>
+<title>Upscaly: 무손실 지향 확대기 v1.3.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;600&display=swap" rel="stylesheet">
@@ -256,7 +256,7 @@ dialog .detail.warn{color:var(--warn)}
   .bar .btn{padding:0 9px}
   .brand{padding-right:10px}
 }
-@media (max-width:720px){.brand .sub{display:none}}   /* 좁은 화면: 「Upscaly v1.3.0」만 (버튼이 다음 줄로 밀리지 않게) */
+@media (max-width:720px){.brand .sub{display:none}}   /* 좁은 화면: 「Upscaly v1.3.1」만 (버튼이 다음 줄로 밀리지 않게) */
 @media (max-width:500px){
   .bar{gap:8px}
   .brand{gap:5px}
@@ -289,7 +289,7 @@ dialog .detail.warn{color:var(--warn)}
         <rect class="b" x="7.6" y="7.6" width="11.15" height="11.15" rx="1.75"/>
       </svg>
       <span class="name">Upscaly<span class="sub">: 무손실 지향 확대기</span></span>
-      <span class="ver num" title="버전">v1.3.0</span>
+      <span class="ver num" title="버전">v1.3.1</span>
     </div>
     <div class="readout num" id="readout">이미지를 열어 시작하세요.</div>
     <div class="acts">
@@ -480,7 +480,7 @@ dialog .detail.warn{color:var(--warn)}
     <section class="stage" id="stage">
       <canvas id="view"></canvas>
       <div class="tags" id="tags">
-        <span class="tag">원본 확대 (브라우저 보간)</span>
+        <span class="tag">원본 (보간 없이 화소 그대로)</span>
         <span class="tag">처리 결과</span>
       </div>
       <div class="drop" id="drop">이미지를 여기에 놓거나 붙여넣으세요 · 최대 20장 · JPEG, PNG, WebP, AVIF</div>
@@ -6323,7 +6323,7 @@ function clampView() {
 
 function render() {
   const r = stage.getBoundingClientRect();
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);   // 화면 화소와 1:1 (캔버스를 CSS로 늘리면 브라우저 보간이 끼어든다)
   const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
   if (view.width !== W || view.height !== H) { view.width = W; view.height = H; }
   vctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -6336,17 +6336,15 @@ function render() {
   const dx = -st.view.x * z, dy = -st.view.y * z, dW = w * z, dH = h * z;
 
   // 오른쪽: 처리 결과 (없으면 원본)
-  vctx.imageSmoothingEnabled = z < 1;
-  vctx.imageSmoothingQuality = "high";
   if (st.result) drawTiles(z, dx, dy, W, H);
-  else vctx.drawImage(st.srcCanvas, dx, dy, dW, dH);
+  else { smoothFor(dW / st.srcW); vctx.drawImage(st.srcCanvas, dx, dy, dW, dH); }
 
-  // 왼쪽: 원본을 같은 크기로 브라우저 보간 확대한 것
+  // 왼쪽: 원본을 같은 크기로 — 브라우저 보간 없이 화소 그대로 키운 것(최근접)
   if (st.result && st.view.compare) {
     const splitX = Math.round(W * st.view.split);
     vctx.save();
     vctx.beginPath(); vctx.rect(0, 0, splitX, H); vctx.clip();
-    vctx.imageSmoothingEnabled = true;
+    smoothFor(dW / st.srcW);
     vctx.drawImage(st.srcCanvas, dx, dy, dW, dH);
     vctx.restore();
     vctx.fillStyle = "rgba(255,255,255,.75)";
@@ -6372,6 +6370,8 @@ function render() {
   $("#zoomVal").textContent = Math.round(st.view.z * 100) + "%";
 }
 
+/* 화면에 그릴 때 키우는 쪽은 보간하지 않는다(화소 그대로 = 최근접). 줄일 때만 부드럽게(겹침 무늬 방지) */
+function smoothFor(mag) { vctx.imageSmoothingEnabled = mag < 1; vctx.imageSmoothingQuality = "high"; }
 /* 결과 타일 그리기 — 캐시에 없는 타일은 원본 확대로 자리를 채우고 뒤에서 계산을 맡긴다 */
 function drawTiles(z, dx, dy, W, H) {
   const R = st.result, diff = st.view.diff && R.one ? 1 : 0;
@@ -6384,8 +6384,9 @@ function drawTiles(z, dx, dy, W, H) {
     const x1 = Math.round(dx + (t.X0 + t.TW) * z), y1 = Math.round(dy + (t.Y0 + t.TH) * z);
     if (x1 <= x0 || y1 <= y0) continue;
     const tl = tcGet(tileKey(R, tx, ty, diff));
-    if (tl) vctx.drawImage(tl.cv, x0, y0, x1 - x0, y1 - y0);
+    if (tl) { smoothFor(z); vctx.drawImage(tl.cv, x0, y0, x1 - x0, y1 - y0); }
     else {
+      smoothFor(z * kx);                                     // 자리 채움 원본도 화소 그대로
       vctx.drawImage(st.srcCanvas, t.X0 / kx, t.Y0 / ky, t.TW / kx, t.TH / ky, x0, y0, x1 - x0, y1 - y0);
       missing.push([tx, ty]);
     }

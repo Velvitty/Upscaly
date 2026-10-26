@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <b>Español</b></p>
 
-# 🔍 Upscaly: ampliador de imágenes que aspira a no perder información (무손실 지향 확대기) `v1.3.0`
+# 🔍 Upscaly: ampliador de imágenes que aspira a no perder información (무손실 지향 확대기) `v1.3.1`
 
 Upscaly es una herramienta de ampliación de imágenes que aspira a no perder información. Funciona con un solo archivo (`upscaler.html`) y realiza todos los cálculos dentro del navegador.
 No hay nada que instalar ni ningún sitio al que subir nada. La imagen nunca sale del dispositivo.
 
-Versión actual **v1.3.0** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Versión actual **v1.3.1** · los cambios figuran en [12. Registro de cambios](#12-registro-de-cambios). El código fuente de desarrollo, las pruebas y el material de investigación están en el repositorio [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Índice**
 
@@ -51,7 +51,7 @@ Al agrandar una imagen pequeña, lo habitual es que se vuelva borrosa, que apare
 2. Pulse **Abrir imagen** (이미지 열기), arrastre la imagen a la pantalla o péguela. Se pueden abrir hasta 20 imágenes a la vez, en JPEG, PNG, WebP o AVIF.
 3. Elija el **factor** (배율). Puede basarse en la longitud de ancho y alto (1–12×) o en el número de píxeles (superficie); si elige 「Automático」, se selecciona el mayor factor (3–8×) que este dispositivo puede procesar hasta el final.
 4. Pulse **「Automático: (recomendado)」(자동: (권장, 추천))**. Mide el tipo y el estado de la imagen, rellena todos los ajustes de abajo y anota brevemente en qué se ha basado. Si verse nítido importa más que ser fiel al original, elija 「Percepción」 en **Objetivo** (목표).
-5. Pulse **Ejecutar ampliación** (확대 실행). Si **Comparar con el original** (원본 비교) está activado, la mitad izquierda de la pantalla muestra el original ampliado por el navegador y la mitad derecha el resultado. La vista se desplaza arrastrando y se amplía con la rueda; están los botones **Ajustar** (맞춤, tecla F), **1:1** y **Comparar con el original** (tecla C).
+5. Pulse **Ejecutar ampliación** (확대 실행). Si **Comparar con el original** (원본 비교) está activado, la mitad izquierda de la pantalla muestra el original ampliado píxel a píxel, sin interpolación del navegador, y la mitad derecha el resultado. La vista se desplaza arrastrando y se amplía con la rueda; están los botones **Ajustar** (맞춤, tecla F), **1:1** y **Comparar con el original** (tecla C).
 6. **Guardar PNG** (PNG 저장) guarda la imagen actual y **Guardar todo** (모두 저장) guarda de una vez todas las imágenes procesadas.
 
 ### Si elige los ajustes usted mismo
@@ -708,7 +708,7 @@ Los cuellos de botella que quedan son la interpolación DCCI (por canal), la cor
 
 Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Salvo el elemento de alfa en la ampliación por etapas, son iguales que en v1.0.0. Estas son las demás pruebas.
 
-| Prueba | Contenido | v1.3.0 |
+| Prueba | Contenido | v1.3.1 |
 |---|---|---|
 | `e2e_presets.js` | Procesamiento con 8 preajustes + guardado en 8 y 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % respecto a los 43,446 de v1.0.0 por el tramado) |
 | `engine_regression.js` | Salida de 16 bits y estadísticas de 134 combinaciones contrastadas con la versión de referencia | 134/134 idénticas byte a byte |
@@ -725,6 +725,7 @@ Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Sal
 | `p3_browser.js` | Conservación del color P3 en Chromium real (primarios y colores mezclados, incluida la simulación de entornos en los que se bloquean las imágenes blob: y `createImageBitmap` convierte a sRGB) | [9.9](#99-display-p3) |
 | `build_docs.py --check` | Si `help.html`, `instruction.html` y `paper.html` coinciden con sus fuentes (`docs/*.md`, README); enlaces internos y fórmulas | al día ✓ |
 | `docs_browser.js` | En Chromium real: el botón 「?」 de la aplicación y la tecla <kbd>?</kbd> → ayuda en una pestaña nueva, pestañas superiores de los tres documentos, 197 enlaces internos, 208 fórmulas en MathML, sin desbordamiento a 390 px, resorte del marcador de pestaña | ✓ 13 |
+| `view_pixels.js` | Sin interpolación del navegador al ampliar en pantalla (tablero blanco y negro: solo el original, lado izquierdo de la comparación, relleno antes de los mosaicos), lienzo 1:1 con relación de píxeles 3 | ✓ 4 (v1.3.0: gris intermedio 18 % en la comparación, 15,6 % en el relleno, lienzo ×2) |
 
 ### 9.2 Datos
 
@@ -908,6 +909,12 @@ Al principio, 「Percepción」 añadía también un grano fino (restauración d
 ---
 
 ## 12. Registro de cambios
+
+### v1.3.1 — Sin interpolación del navegador en pantalla
+
+- Al ampliar en pantalla, el original y el resultado se muestran píxel a píxel (vecino más cercano), sin interpolación del navegador. Lo mismo vale para el original a la izquierda de Comparar con el original y para el original que rellena el hueco antes de calcular los mosaicos (en un tablero blanco y negro, gris intermedio 18 % → 0 %). El suavizado solo se usa al alejar.
+- En pantallas con relación de píxeles 3× el lienzo se dibuja ahora 1:1 con los píxeles de la pantalla, así que el navegador ya no lo difumina al estirarlo.
+- Los cálculos y los archivos guardados son idénticos a los de la v1.3.0.
 
 ### v1.3.0 — Ayuda, manual y artículo para desarrolladores
 

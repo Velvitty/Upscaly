@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <b>Français</b> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.3.0`
+# 🔍 Upscaly : agrandisseur d'images visant l'absence de perte (무손실 지향 확대기) `v1.3.1`
 
 Upscaly est un outil d'agrandissement d'images qui vise l'absence de perte. Il tient dans un seul fichier (`upscaler.html`) et effectue tous les calculs dans le navigateur.
 Rien à installer, rien à téléverser. Vos images ne quittent jamais votre appareil.
 
-Version actuelle **v1.3.0** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
+Version actuelle **v1.3.1** · les changements sont décrits dans [12. Historique des versions](#12-historique-des-versions). Les sources de développement, les tests et les données de recherche se trouvent dans le dépôt [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev).
 
 **Sommaire**
 
@@ -51,7 +51,7 @@ Quand on agrandit une petite image, elle devient en général floue, crénelée,
 2. Cliquez sur **Ouvrir une image** (이미지 열기), glissez-déposez une image sur l'écran ou collez-la. Vous pouvez ouvrir jusqu'à 20 images à la fois, en JPEG, PNG, WebP ou AVIF.
 3. Choisissez le **facteur** (배율). Il peut être défini sur la largeur et la hauteur (1 à 12×) ou sur le nombre de pixels (surface) ; si vous choisissez 「Auto」, le plus grand facteur (3 à 8×) que cet appareil peut traiter jusqu'au bout est sélectionné.
 4. Cliquez sur **「Auto : (conseillé, recommandé)」(자동: (권장, 추천))**. Le type et l'état de l'image sont mesurés, tous les réglages ci-dessous sont remplis, et une courte note indique sur quoi reposent ces choix. Si paraître net compte plus que rester fidèle à l'original, choisissez 「Perception」 dans **Objectif** (목표).
-5. Cliquez sur **Lancer l'agrandissement** (확대 실행). Si **Comparer à l'original** (원본 비교) est activé, la moitié gauche de l'écran montre l'original agrandi par le navigateur, la moitié droite le résultat. Faites glisser pour vous déplacer, utilisez la molette pour zoomer, ainsi que les boutons **Ajuster** (맞춤, touche F), **1:1** et **Comparer à l'original** (touche C).
+5. Cliquez sur **Lancer l'agrandissement** (확대 실행). Si **Comparer à l'original** (원본 비교) est activé, la moitié gauche de l'écran montre l'original agrandi pixel par pixel, sans interpolation du navigateur, la moitié droite le résultat. Faites glisser pour vous déplacer, utilisez la molette pour zoomer, ainsi que les boutons **Ajuster** (맞춤, touche F), **1:1** et **Comparer à l'original** (touche C).
 6. **Enregistrer en PNG** (PNG 저장) enregistre l'image actuelle, **Tout enregistrer** (모두 저장) enregistre d'un coup toutes les images traitées.
 
 ### Choisir les réglages soi-même
@@ -708,7 +708,7 @@ Les goulots d'étranglement restants sont l'interpolation DCCI (par canal), la c
 
 Les invariants sont mesurés avec le tramage 8 bits activé (par défaut). Hormis l'élément alpha de l'agrandissement par étapes, ils sont identiques à ceux de la v1.0.0. Voici les autres tests.
 
-| Test | Contenu | v1.3.0 |
+| Test | Contenu | v1.3.1 |
 |---|---|---|
 | `e2e_presets.js` | Traitement de 8 préréglages + enregistrement 8 et 16 bits | ✓ 8, 45,711 · 239,731 bytes (en 8 bits, +5 % par rapport aux 43,446 de la v1.0.0 à cause du tramage) |
 | `engine_regression.js` | Comparaison des sorties 16 bits et statistiques de 134 combinaisons avec la version de référence | 134/134 identiques à l'octet |
@@ -725,6 +725,7 @@ Les invariants sont mesurés avec le tramage 8 bits activé (par défaut). Hormi
 | `p3_browser.js` | Préservation des couleurs P3 dans un vrai Chromium (primaires et couleurs mélangées, y compris la simulation d'environnements où les images blob: sont bloquées et où `createImageBitmap` convertit en sRGB) | [9.9](#99-display-p3) |
 | `build_docs.py --check` | `help.html`, `instruction.html` et `paper.html` correspondent-ils à leurs sources (`docs/*.md`, README) ; liens internes et formules | à jour ✓ |
 | `docs_browser.js` | Dans un vrai Chromium : bouton 「?」 de l'application et touche <kbd>?</kbd> → aide dans un nouvel onglet, onglets en haut des trois documents, 197 liens internes, 208 formules en MathML, aucun débordement à 390 px, ressort du repère d'onglet | ✓ 13 |
+| `view_pixels.js` | Aucune interpolation du navigateur en zoom avant à l'écran (damier noir et blanc : original seul, côté gauche de la comparaison, remplissage avant les tuiles), canevas 1:1 à un rapport de pixels de 3 | ✓ 4 (v1.3.0 : gris intermédiaire 18 % côté comparaison, 15,6 % au remplissage, canevas ×2) |
 
 ### 9.2 Données
 
@@ -908,6 +909,12 @@ Au départ, 「Perception」 ajoutait aussi un grain fin (restauration de textur
 ---
 
 ## 12. Historique des versions
+
+### v1.3.1 — Plus d'interpolation du navigateur à l'écran
+
+- En zoom avant à l'écran, l'original et le résultat sont affichés pixel par pixel (plus proche voisin), sans interpolation du navigateur. Il en va de même pour l'original à gauche de Comparer à l'original et pour l'original qui comble la place avant le calcul des tuiles (sur un damier noir et blanc, gris intermédiaire 18 % → 0 %). Le lissage n'est utilisé qu'en zoom arrière.
+- Sur les écrans de rapport de pixels 3×, le canevas est désormais dessiné à 1:1 avec les pixels de l'écran, si bien que le navigateur ne le floute plus en l'étirant.
+- Les calculs et les fichiers enregistrés sont identiques à ceux de la v1.3.0.
 
 ### v1.3.0 — Aide, manuel et article pour développeurs
 
