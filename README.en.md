@@ -51,7 +51,7 @@ When you enlarge a small image, it usually turns blurry, gets jagged staircases,
 2. Press **Open image** (이미지 열기), drag an image onto the screen, or paste one. You can open up to 20 images at once, in JPEG, PNG, WebP or AVIF.
 3. Choose the **scale** (배율). There is a width/height-based scale (1–12×) and a pixel-count (area) based scale; choosing 「Auto」 picks the largest scale (3–8×) this device can process to the end.
 4. Press **「Auto: (recommended, suggested)」(자동: (권장, 추천))**. It measures the kind and condition of the image, fills in all the settings below, and writes a short note on what it based them on. If looking crisp matters more than staying faithful to the original, choose 「Perceptual」 under **Goal** (목표).
-5. Press **Run upscale** (확대 실행). With **Compare original** (원본 비교) on, the left half of the screen shows the original enlarged pixel for pixel, without browser interpolation, and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (맞춤, F key), **1:1** and **Compare original** (C key) buttons.
+5. Press **Run upscale** (확대 실행). With **Compare original** (원본 비교) on, the left half of the screen shows the original enlarged by the app with a cubic B-spline, and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (맞춤, F key), **1:1** and **Compare original** (C key) buttons.
 6. **Save PNG** (PNG 저장) saves the current image, and **Save all** (모두 저장) saves all processed images at once.
 
 ### Choosing settings yourself
@@ -725,7 +725,7 @@ The invariants are measured with 8-bit dithering on (default). Apart from the st
 | `p3_browser.js` | P3 color preservation in real Chromium (primaries · mixed colors, including simulated environments where blob: images are blocked and `createImageBitmap` converts to sRGB) | [9.9](#99-display-p3) |
 | `build_docs.py --check` | Whether `help.html`, `instruction.html` and `paper.html` match their sources (`docs/*.md`, README); internal links and formulas | up to date ✓ |
 | `docs_browser.js` | In real Chromium: the app's 「?」 button and <kbd>?</kbd> key → help in a new tab, top tabs of the three documents, 197 links inside the documents, 208 formulas as MathML, no overflow at 390 px, spring of the tab marker | ✓ 13 |
-| `view_pixels.js` | No browser interpolation when zoomed in on screen (black-and-white checkerboard: original only, left of compare, fill-in before tiles), canvas 1:1 at a 3× pixel ratio | ✓ 4 (v1.3.0: mid-gray 18% on the compare side, 15.6% in fill-in, canvas ×2) |
+| `view_pixels.js` | Whether the original enlarged on screen (original only, left of compare, fill-in before tiles) is the app's cubic B-spline (black-and-white checkerboard, compared with independently computed values) with no pixel steps; canvas 1:1 at a 3× pixel ratio | ✓ 8, max difference ≤ 1 (v1.3.0: over 110 with browser interpolation) |
 
 ### 9.2 Data
 
@@ -910,10 +910,11 @@ At first, 「Perceptual」 also added fine grain (texture revival, 25% at streng
 
 ## 12. Changelog
 
-### v1.3.1 — No browser interpolation on screen
+### v1.3.1 — B-spline instead of browser interpolation for the original
 
-- When zoomed in on screen, the original and the result are shown pixel for pixel (nearest neighbor), without browser interpolation. The same goes for the original on the left of Compare original and the original that fills in before tiles are computed (on a black-and-white checkerboard, mid-gray 18% → 0%). Smoothing is used only when zoomed out.
-- On screens with a 3× pixel ratio the canvas is now drawn 1:1 with the screen pixels, so the browser no longer blurs it by stretching it.
+- When the original is enlarged on screen (a newly opened image, the left side of Compare original, and the fill-in before tiles are computed), the app enlarges it itself with a cubic B-spline (B=1, C=0, the smoothest cubic, with no ringing) instead of browser interpolation. No pixel steps are visible. On a black-and-white checkerboard the screen values match an independently computed B-spline within one level. While dragging, the computed image is shifted and reused.
+- The result shows its own pixels as they are (nearest neighbor) when zoomed in, and is smoothed only when zoomed out.
+- On screens with a 3× pixel ratio the canvas is drawn 1:1 with the screen pixels, so the browser no longer blurs it by stretching it.
 - Computation and saved results are the same as in v1.3.0.
 
 ### v1.3.0 — Help, manual and developer paper

@@ -51,7 +51,7 @@ Al agrandar una imagen pequeña, lo habitual es que se vuelva borrosa, que apare
 2. Pulse **Abrir imagen** (이미지 열기), arrastre la imagen a la pantalla o péguela. Se pueden abrir hasta 20 imágenes a la vez, en JPEG, PNG, WebP o AVIF.
 3. Elija el **factor** (배율). Puede basarse en la longitud de ancho y alto (1–12×) o en el número de píxeles (superficie); si elige 「Automático」, se selecciona el mayor factor (3–8×) que este dispositivo puede procesar hasta el final.
 4. Pulse **「Automático: (recomendado)」(자동: (권장, 추천))**. Mide el tipo y el estado de la imagen, rellena todos los ajustes de abajo y anota brevemente en qué se ha basado. Si verse nítido importa más que ser fiel al original, elija 「Percepción」 en **Objetivo** (목표).
-5. Pulse **Ejecutar ampliación** (확대 실행). Si **Comparar con el original** (원본 비교) está activado, la mitad izquierda de la pantalla muestra el original ampliado píxel a píxel, sin interpolación del navegador, y la mitad derecha el resultado. La vista se desplaza arrastrando y se amplía con la rueda; están los botones **Ajustar** (맞춤, tecla F), **1:1** y **Comparar con el original** (tecla C).
+5. Pulse **Ejecutar ampliación** (확대 실행). Si **Comparar con el original** (원본 비교) está activado, la mitad izquierda de la pantalla muestra el original ampliado por la aplicación con una B-spline cúbica, y la mitad derecha el resultado. La vista se desplaza arrastrando y se amplía con la rueda; están los botones **Ajustar** (맞춤, tecla F), **1:1** y **Comparar con el original** (tecla C).
 6. **Guardar PNG** (PNG 저장) guarda la imagen actual y **Guardar todo** (모두 저장) guarda de una vez todas las imágenes procesadas.
 
 ### Si elige los ajustes usted mismo
@@ -725,7 +725,7 @@ Los invariantes se midieron con el tramado de 8 bits activado (por defecto). Sal
 | `p3_browser.js` | Conservación del color P3 en Chromium real (primarios y colores mezclados, incluida la simulación de entornos en los que se bloquean las imágenes blob: y `createImageBitmap` convierte a sRGB) | [9.9](#99-display-p3) |
 | `build_docs.py --check` | Si `help.html`, `instruction.html` y `paper.html` coinciden con sus fuentes (`docs/*.md`, README); enlaces internos y fórmulas | al día ✓ |
 | `docs_browser.js` | En Chromium real: el botón 「?」 de la aplicación y la tecla <kbd>?</kbd> → ayuda en una pestaña nueva, pestañas superiores de los tres documentos, 197 enlaces internos, 208 fórmulas en MathML, sin desbordamiento a 390 px, resorte del marcador de pestaña | ✓ 13 |
-| `view_pixels.js` | Sin interpolación del navegador al ampliar en pantalla (tablero blanco y negro: solo el original, lado izquierdo de la comparación, relleno antes de los mosaicos), lienzo 1:1 con relación de píxeles 3 | ✓ 4 (v1.3.0: gris intermedio 18 % en la comparación, 15,6 % en el relleno, lienzo ×2) |
+| `view_pixels.js` | Si el original ampliado en pantalla (solo el original, lado izquierdo de la comparación, relleno antes de los mosaicos) es la B-spline cúbica de la aplicación (tablero blanco y negro, comparado con valores calculados aparte), sin escalones de píxel; lienzo 1:1 con relación de píxeles 3 | ✓ 8, diferencia máxima ≤ 1 (v1.3.0: más de 110 con la interpolación del navegador) |
 
 ### 9.2 Datos
 
@@ -910,10 +910,11 @@ Al principio, 「Percepción」 añadía también un grano fino (restauración d
 
 ## 12. Registro de cambios
 
-### v1.3.1 — Sin interpolación del navegador en pantalla
+### v1.3.1 — B-spline en lugar de la interpolación del navegador para el original
 
-- Al ampliar en pantalla, el original y el resultado se muestran píxel a píxel (vecino más cercano), sin interpolación del navegador. Lo mismo vale para el original a la izquierda de Comparar con el original y para el original que rellena el hueco antes de calcular los mosaicos (en un tablero blanco y negro, gris intermedio 18 % → 0 %). El suavizado solo se usa al alejar.
-- En pantallas con relación de píxeles 3× el lienzo se dibuja ahora 1:1 con los píxeles de la pantalla, así que el navegador ya no lo difumina al estirarlo.
+- Al ampliar el original en pantalla (una imagen recién abierta, el lado izquierdo de Comparar con el original y el relleno antes de calcular los mosaicos), la aplicación lo amplía por sí misma con una B-spline cúbica (B=1, C=0, la más suave de las cúbicas, sin ringing) en lugar de la interpolación del navegador. No se ven escalones de píxel. En un tablero blanco y negro, los valores en pantalla coinciden con una B-spline calculada aparte con un margen de un nivel. Al arrastrar, la imagen calculada se desplaza y se reutiliza.
+- El resultado muestra sus propios píxeles tal cual (vecino más cercano) al ampliar, y solo se suaviza al alejar.
+- En pantallas con relación de píxeles 3× el lienzo se dibuja 1:1 con los píxeles de la pantalla, así que el navegador ya no lo difumina al estirarlo.
 - Los cálculos y los archivos guardados son idénticos a los de la v1.3.0.
 
 ### v1.3.0 — Ayuda, manual y artículo para desarrolladores
