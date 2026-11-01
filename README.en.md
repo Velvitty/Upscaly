@@ -1,11 +1,11 @@
 <p align="right"><a href="README.md">한국어</a> · <b>English</b> · <a href="README.ja.md">日本語</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <a href="README.es.md">Español</a></p>
 
-# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.3.0`
+# 🔍 Upscaly: Lossless-Oriented Upscaler (무손실 지향 확대기) `v1.3.1`
 
 An image upscaler that aims to be lossless. It runs as a single file (`upscaler.html`) and does all of its computation inside the browser.
 There is nothing to install and nothing to upload. Your images never leave your device.
 
-Current version **v1.3.0** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
+Current version **v1.3.1** · what changed is in [12. Changelog](#12-changelog). Development sources, tests and research material are in the [Upscaly-dev](https://github.com/Velvitty/Upscaly-dev) repository.
 
 **Contents**
 
@@ -51,7 +51,7 @@ When you enlarge a small image, it usually turns blurry, gets jagged staircases,
 2. Press **Open image** (이미지 열기), drag an image onto the screen, or paste one. You can open up to 20 images at once, in JPEG, PNG, WebP or AVIF.
 3. Choose the **scale** (배율). There is a width/height-based scale (1–12×) and a pixel-count (area) based scale; choosing 「Auto」 picks the largest scale (3–8×) this device can process to the end.
 4. Press **「Auto: (recommended, suggested)」(자동: (권장, 추천))**. It measures the kind and condition of the image, fills in all the settings below, and writes a short note on what it based them on. If looking crisp matters more than staying faithful to the original, choose 「Perceptual」 under **Goal** (목표).
-5. Press **Run upscale** (확대 실행). With **Compare original** (원본 비교) on, the left half of the screen shows the original enlarged by the browser and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (맞춤, F key), **1:1** and **Compare original** (C key) buttons.
+5. Press **Run upscale** (확대 실행). With **Compare original** (원본 비교) on, the left half of the screen shows the original enlarged by the app with a cubic B-spline, and the right half shows the result. Drag to pan, use the wheel to zoom, and use the **Fit** (맞춤, F key), **1:1** and **Compare original** (C key) buttons.
 6. **Save PNG** (PNG 저장) saves the current image, and **Save all** (모두 저장) saves all processed images at once.
 
 ### Choosing settings yourself
@@ -708,7 +708,7 @@ The remaining bottlenecks are DCCI interpolation (per channel), consistency corr
 
 The invariants are measured with 8-bit dithering on (default). Apart from the staged-upscaling alpha item, they are the same as v1.0.0. Other tests:
 
-| Test | Contents | v1.3.0 |
+| Test | Contents | v1.3.1 |
 |---|---|---|
 | `e2e_presets.js` | Processing 8 presets + 8 · 16-bit saving | ✓ 8, 45,711 · 239,731 bytes (8-bit is +5% from v1.0.0's 43,446 due to dither) |
 | `engine_regression.js` | 16-bit output · statistics of 134 combinations compared against the baseline | 134/134 byte-identical |
@@ -725,6 +725,7 @@ The invariants are measured with 8-bit dithering on (default). Apart from the st
 | `p3_browser.js` | P3 color preservation in real Chromium (primaries · mixed colors, including simulated environments where blob: images are blocked and `createImageBitmap` converts to sRGB) | [9.9](#99-display-p3) |
 | `build_docs.py --check` | Whether `help.html`, `instruction.html` and `paper.html` match their sources (`docs/*.md`, README); internal links and formulas | up to date ✓ |
 | `docs_browser.js` | In real Chromium: the app's 「?」 button and <kbd>?</kbd> key → help in a new tab, top tabs of the three documents, 197 links inside the documents, 208 formulas as MathML, no overflow at 390 px, spring of the tab marker | ✓ 13 |
+| `view_pixels.js` | Whether the original enlarged on screen (original only, left of compare, fill-in before tiles) is the app's cubic B-spline (black-and-white checkerboard, compared with independently computed values) with no pixel steps; canvas 1:1 at a 3× pixel ratio | ✓ 8, max difference ≤ 1 (v1.3.0: over 110 with browser interpolation) |
 
 ### 9.2 Data
 
@@ -908,6 +909,13 @@ At first, 「Perceptual」 also added fine grain (texture revival, 25% at streng
 ---
 
 ## 12. Changelog
+
+### v1.3.1 — B-spline instead of browser interpolation for the original
+
+- When the original is enlarged on screen (a newly opened image, the left side of Compare original, and the fill-in before tiles are computed), the app enlarges it itself with a cubic B-spline (B=1, C=0, the smoothest cubic, with no ringing) instead of browser interpolation. No pixel steps are visible. On a black-and-white checkerboard the screen values match an independently computed B-spline within one level. While dragging, the computed image is shifted and reused.
+- The result shows its own pixels as they are (nearest neighbor) when zoomed in, and is smoothed only when zoomed out.
+- On screens with a 3× pixel ratio the canvas is drawn 1:1 with the screen pixels, so the browser no longer blurs it by stretching it.
+- Computation and saved results are the same as in v1.3.0.
 
 ### v1.3.0 — Help, manual and developer paper
 
